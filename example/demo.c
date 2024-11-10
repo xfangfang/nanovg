@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#ifdef NANOVG_GLEW
-#  include <GL/glew.h>
-#endif
-#include <GLFW/glfw3.h>
 #include "nanovg.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -1062,13 +1058,28 @@ void drawScissor(NVGcontext* vg, float x, float y, float t)
 	nvgRestore(vg);
 }
 
+void drawMouse(NVGcontext* vg, float x, float y)
+{
+    nvgBeginPath(vg);
+    nvgMoveTo(vg, x, y);
+    nvgLineTo(vg, x, y+26);
+    nvgLineTo(vg, x+8, y+21);
+    nvgLineTo(vg, x+18, y+20);
+    nvgClosePath(vg);
+
+    nvgFillColor(vg, nvgRGBA(0,0,0,196));
+    nvgFill(vg);
+    nvgStrokeColor(vg, nvgRGBA(255,255,255,196));
+    nvgStroke(vg);
+}
+
 void renderDemo(NVGcontext* vg, float mx, float my, float width, float height,
 				float t, int blowup, DemoData* data)
 {
 	float x,y,popy;
 
 	drawEyes(vg, width - 250, 50, 150, 100, mx, my, t);
-	drawParagraph(vg, width - 450, 50, 150, 100, mx, my);
+	drawParagraph(vg, width - 405, 50, 150, 100, mx, my);
 	drawGraph(vg, 0, height/2, width, height/2, t);
 	drawColorwheel(vg, width - 300, height - 300, 250.0f, 250.0f, t);
 
@@ -1121,6 +1132,8 @@ void renderDemo(NVGcontext* vg, float mx, float my, float width, float height,
 
 	// Thumbnails box
 	drawThumbnails(vg, 365, popy-30, 160, 300, data->images, 12, t);
+
+    drawMouse(vg, mx, my);
 
 	nvgRestore(vg);
 }
@@ -1212,17 +1225,27 @@ static void flipHorizontal(unsigned char* image, int w, int h, int stride)
 	}
 }
 
+// Defined in nanovg_gxm_utils.h
+void *gxmReadPixels();
+
 void saveScreenShot(int w, int h, int premult, const char* name)
 {
 	unsigned char* image = (unsigned char*)malloc(w*h*4);
 	if (image == NULL)
 		return;
-	glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+    void *pixels = gxmReadPixels();
+    if (pixels == NULL)
+    {
+        free(image);
+        return;
+    }
+
+    memcpy(image, pixels, w*h*4);
 	if (premult)
 		unpremultiplyAlpha(image, w, h, w*4);
 	else
 		setAlpha(image, w, h, w*4, 255);
-	flipHorizontal(image, w, h, w*4);
  	stbi_write_png(name, w, h, 4, image, w*4);
  	free(image);
 }

@@ -1,3 +1,33 @@
+NanoVG-GXM
+==========
+
+Port of NanoVG to Sony's GXM API.
+
+Compared to running through OpenGL ES2, significant performance improvement has been achieved by using GXM API.
+
+## Build
+
+```shell
+cmake -B build -DENABLE_EXAMPLE=ON
+cmake --build build
+```
+
+## TODO
+
+#### 1. blend function 
+Currently, these functions in nanovg.h are not supported:
+
+```c
+nvgGlobalCompositeOperation, nvgGlobalCompositeBlendFunc, nvgGlobalCompositeBlendFuncSeparate
+```
+
+The default blend behavior is equivalent to: nvgGlobalCompositeOperation(NVG_SOURCE_OVER)
+
+#### 2. Image flag
+The `NVG_IMAGE_GENERATE_MIPMAPS` flag is not supported yet.
+
+---
+
 *This project is not actively maintained.*
 
 NanoVG
