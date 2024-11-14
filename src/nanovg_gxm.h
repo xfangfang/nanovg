@@ -442,7 +442,7 @@ static int gxmnvg__renderCreate(void *uptr) {
             return 0;
     }
 #else
-    static const char fillVertShader[384] = {
+    static const unsigned char fillVertShader[384] = {
             0x47, 0x58, 0x50, 0x00, 0x01, 0x05, 0x00, 0x03, 0x7f, 0x01, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x19, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -480,7 +480,7 @@ static int gxmnvg__renderCreate(void *uptr) {
             0x76, 0x69, 0x65, 0x77, 0x53, 0x69, 0x7a, 0x65, 0x00, 0x00
     };
 
-    static const char fillFragShader[1184] = {
+    static const unsigned char fillFragShader[1184] = {
             0x47, 0x58, 0x50, 0x00, 0x01, 0x05, 0x00, 0x03, 0x9d, 0x04, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x10,
             0x18, 0x00, 0x00, 0x00, 0x00, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00,
@@ -591,7 +591,7 @@ static int gxmnvg__renderCreate(void *uptr) {
             0x74, 0x65, 0x78, 0x00, 0x00, 0x00, 0x00
     };
 
-    static const char fillAAFragShader[1324] = {
+    static const unsigned char fillAAFragShader[1324] = {
             0x47, 0x58, 0x50, 0x00, 0x01, 0x05, 0x00, 0x03, 0x29, 0x05, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x10,
             0x18, 0x00, 0x00, 0x00, 0x00, 0x10, 0x02, 0x00, 0x00, 0x00, 0x00,
@@ -715,7 +715,7 @@ static int gxmnvg__renderCreate(void *uptr) {
             0x00, 0x00, 0x00, 0x00
     };
 
-    static const char depthFragShader[188] = {
+    static const unsigned char depthFragShader[188] = {
             0x47, 0x58, 0x50, 0x00, 0x01, 0x05, 0x00, 0x03, 0xbc, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
             0x19, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -737,15 +737,15 @@ static int gxmnvg__renderCreate(void *uptr) {
     };
 
     if (gxm->flags & NVG_ANTIALIAS) {
-        if (gxmnvg__createShader(&gxm->shader, "fillAA", fillVertShader, fillAAFragShader) == 0)
+        if (gxmnvg__createShader(&gxm->shader, "fillAA", (const char*)fillVertShader, (const char*)fillAAFragShader) == 0)
             return 0;
     } else {
-        if (gxmnvg__createShader(&gxm->shader, "fill", fillVertShader, fillFragShader) == 0)
+        if (gxmnvg__createShader(&gxm->shader, "fill", (const char*)fillVertShader, (const char*)fillFragShader) == 0)
             return 0;
     }
 #endif
 
-    if (gxmnvg__createShader(&gxm->depth_shader, "depth", NULL, depthFragShader) == 0)
+    if (gxmnvg__createShader(&gxm->depth_shader, "depth", NULL, (const char*)depthFragShader) == 0)
         return 0;
 
     gxm->vertBuf = (struct NVGvertex *) gpu_alloc_map(
@@ -1251,10 +1251,7 @@ static void gxmnvg__renderFlush(void *uptr) {
         sceGxmSetFrontStencilRef(gxm->context, 0);
         sceGxmSetBackStencilRef(gxm->context, 0);
 
-        sceGxmSetFrontStencilRef(gxm->context, 0);
-        sceGxmSetFrontStencilFunc(gxm->context, SCE_GXM_STENCIL_FUNC_ALWAYS,
-                                  SCE_GXM_STENCIL_OP_KEEP, SCE_GXM_STENCIL_OP_KEEP, SCE_GXM_STENCIL_OP_KEEP,
-                                  0xff, 0xff);
+        gxmnvg__disableStencilTest(gxm);
 
         // Set view just once per frame.
         {

@@ -26,6 +26,7 @@ target_include_directories(nanovg PUBLIC
 target_link_libraries(nanovg
         m
         SceGxm_stub
+        SceCommonDialog_stub
         SceDisplay_stub
         ${nanovg_extra_library}
 )

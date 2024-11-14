@@ -58,9 +58,9 @@ int main() {
 
     NVGXMframebuffer *gxm = NULL;
     NVGXMinitOptions initOptions = {
-            .SwapInterval = 1,
+            .msaa = SCE_GXM_MULTISAMPLE_4X,
+            .swapInterval = 1,
             .dumpShader = 1, // Save shaders to ux0:data/nvg_*.c
-            .msaa = SCE_GXM_MULTISAMPLE_4X
     };
 
     gxm = nvgxmCreateFramebuffer(&initOptions);
@@ -131,6 +131,7 @@ int main() {
         nvgEndFrame(vg);
 
         gxmEndFrame();
+        gxmSwapBuffer();
 
         cpuTime = (float) sceKernelGetProcessTimeLow() / 1000000.0f - t;
         updateGraph(&fps, (float) dt);
