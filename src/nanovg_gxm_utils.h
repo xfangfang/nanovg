@@ -90,17 +90,17 @@ void nvgxmDeleteFramebuffer(NVGXMframebuffer *gxm);
 /**
  * @brief Begin a scene.
  */
-void gxmBeginFrame();
+void gxmBeginFrame(void);
 
 /**
  * @brief End a scene.
  */
-void gxmEndFrame();
+void gxmEndFrame(void);
 
 /**
  * @brief Swap the buffers.
  */
-void gxmSwapBuffer();
+void gxmSwapBuffer(void);
 
 /**
  * @brief Set the clear color.
@@ -111,12 +111,12 @@ void gxmClearColor(float r, float g, float b, float a);
  * @brief Clear the framebuffer and stencil buffer.
  * Must be called between gxmBeginFrame and gxmEndFrame.
  */
-void gxmClear();
+void gxmClear(void);
 
 /**
  * @brief Get framebuffer data.
  */
-void *gxmReadPixels();
+void *gxmReadPixels(void);
 
 /**
  * @brief Set the swap interval.
@@ -124,9 +124,9 @@ void *gxmReadPixels();
  */
 void gxmSwapInterval(int interval);
 
-int gxmDialogUpdate();
+int gxmDialogUpdate(void);
 
-unsigned short *gxmGetSharedIndices();
+unsigned short *gxmGetSharedIndices(void);
 
 int gxmCreateShader(NVGXMshaderProgram *shader, const char *name, const char *vshader, const char *fshader);
 
@@ -717,7 +717,7 @@ void gxmClearColor(float r, float g, float b, float a) {
     GXM_CHECK_VOID(sceGxmSetFragmentUniformBuffer(gxm_internal.context, 0, gxm_internal.clearColor->rgba));
 }
 
-void gxmClear() {
+void gxmClear(void) {
     sceGxmSetVertexProgram(gxm_internal.context, gxm_internal.clearProg.vert);
     sceGxmSetFragmentProgram(gxm_internal.context, gxm_internal.clearProg.frag);
 
@@ -735,7 +735,7 @@ void gxmClear() {
                3);
 }
 
-void gxmBeginFrame() {
+void gxmBeginFrame(void) {
     GXM_CHECK_VOID(sceGxmBeginScene(gxm_internal.context,
                                     0,
                                     gxm_render_target,
@@ -746,11 +746,11 @@ void gxmBeginFrame() {
                                     &gxm_depth_stencil_surface));
 }
 
-void gxmEndFrame() {
+void gxmEndFrame(void) {
     GXM_CHECK_VOID(sceGxmEndScene(gxm_internal.context, NULL, NULL));
 }
 
-void gxmSwapBuffer() {
+void gxmSwapBuffer(void) {
     struct display_queue_callback_data queue_cb_data;
     queue_cb_data.addr = gxm_color_surfaces_addr[gxm_back_buffer_index];
 
@@ -767,7 +767,7 @@ void gxmSwapInterval(int interval) {
     gxm_internal.initOptions.swapInterval = interval;
 }
 
-int gxmDialogUpdate()
+int gxmDialogUpdate(void)
 {
     SceCommonDialogUpdateParam updateParam;
     memset(&updateParam, 0, sizeof(updateParam));
@@ -785,11 +785,11 @@ int gxmDialogUpdate()
     return sceCommonDialogUpdate(&updateParam);
 }
 
-void *gxmReadPixels() {
+void *gxmReadPixels(void) {
     return sceGxmColorSurfaceGetData(&gxm_color_surfaces[gxm_front_buffer_index]);
 }
 
-unsigned short *gxmGetSharedIndices() {
+unsigned short *gxmGetSharedIndices(void) {
     return gxm_internal.linearIndices;
 }
 

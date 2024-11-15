@@ -913,7 +913,7 @@ static int gxmnvg__renderUpdateTexture(void *uptr, int image, int x, int y, int 
     int spp = tex->type == NVG_TEXTURE_RGBA ? 4 : 1;
 
     for (int i = 0; i < h; i++) {
-        int start = ((i + y) * tex->stride + x) * spp;
+        int start = (i + y) * tex->stride + x * spp;
         memcpy(tex->tex_data + start, data + start, w * spp);
     }
 
