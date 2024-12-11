@@ -51,7 +51,7 @@ int main() {
 
 #ifdef USE_VITA_SHARK
     if (shark_init("app0:module/libshacccg.suprx") < 0) {
-        sceClibPrintf("vitashark: failed to initialize");
+        sceClibPrintf("vitashark: failed to initialize\n");
         return EXIT_FAILURE;
     }
 #endif

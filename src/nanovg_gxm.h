@@ -69,15 +69,16 @@ int __attribute__((weak)) nvg_gxm_vertex_buffer_size = 1024 * 1024;
 static void shark_log_cb(const char *msg, shark_log_level msg_level, int line) {
     switch (msg_level) {
         case SHARK_LOG_INFO:
-            sceClibPrintf("\033[0;34m[GXP #%d]\033[0m %s\n", line, msg);
+            fprintf(stdout, "\033[0;34m[GXP #%d]\033[0m %s\n", line, msg);
             break;
         case SHARK_LOG_WARNING:
-            sceClibPrintf("\033[0;33m[GXP #%d]\033[0m %s\n", line, msg);
+            fprintf(stdout, "\033[0;33m[GXP #%d]\033[0m %s\n", line, msg);
             break;
         case SHARK_LOG_ERROR:
-            sceClibPrintf("\033[0;31m[GXP #%d]\033[0m %s\n", line, msg);
+            fprintf(stdout, "\033[0;31m[GXP #%d]\033[0m %s\n", line, msg);
             break;
     }
+    fflush(stdout);
 }
 
 #endif

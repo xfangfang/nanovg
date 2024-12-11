@@ -393,7 +393,6 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
     NVGXMframebuffer *fb = NULL;
     fb = (NVGXMframebuffer *) malloc(sizeof(NVGXMframebuffer));
     if (fb == NULL) {
-        nvgxmDeleteFramebuffer(fb);
         return NULL;
     }
     memset(fb, 0, sizeof(NVGXMframebuffer));
@@ -621,7 +620,11 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
             0x00
     };
 #endif
-    gxmCreateShader(&gxm_internal.clearProg, "clear", (const char*)clearVertShader, (const char*)clearFragShader);
+    if (gxmCreateShader(&gxm_internal.clearProg, "clear", (const char *) clearVertShader,
+                        (const char *) clearFragShader) == 0) {
+        nvgxmDeleteFramebuffer(fb);
+        return NULL;
+    }
 
     gxm_internal.clearVertices = (struct clear_vertex *) gpu_alloc_map(
             SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE,
@@ -767,8 +770,7 @@ void gxmSwapInterval(int interval) {
     gxm_internal.initOptions.swapInterval = interval;
 }
 
-int gxmDialogUpdate(void)
-{
+int gxmDialogUpdate(void) {
     SceCommonDialogUpdateParam updateParam;
     memset(&updateParam, 0, sizeof(updateParam));
 
@@ -827,6 +829,7 @@ int gxmCreateShader(NVGXMshaderProgram *shader, const char *name, const char *vs
         SceGxmProgram *p = shark_compile_shader(vshader, &size, SHARK_VERTEX_SHADER);
         if (!p) {
             sceClibPrintf("shark_compile_shader failed (vert): %s\n", name);
+            shark_clear_output();
             return 0;
         }
         shader->vert_gxp = (SceGxmProgram *) malloc(size);
@@ -845,6 +848,7 @@ int gxmCreateShader(NVGXMshaderProgram *shader, const char *name, const char *vs
         SceGxmProgram *p = shark_compile_shader(fshader, &size, SHARK_FRAGMENT_SHADER);
         if (!p) {
             sceClibPrintf("shark_compile_shader failed (frag): %s\n", name);
+            shark_clear_output();
             return 0;
         }
         shader->frag_gxp = (SceGxmProgram *) malloc(size);
