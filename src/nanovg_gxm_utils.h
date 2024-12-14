@@ -166,8 +166,8 @@ static struct gxm_internal {
 
     // clear shader
     NVGXMshaderProgram clearProg;
-    NVGcolor *clearColor;
-    SceUID clearColorUid;
+    NVGcolor clearColor;
+    const SceGxmProgramParameter *clearParam;
     SceUID clearVerticesUid;
     struct clear_vertex *clearVertices;
 
@@ -560,7 +560,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
                                          "	return float4(position, 1.f, 1.f);\n"
                                          "}\n";
 
-    static const char *clearFragShader = "float4 main(uniform float4 color : BUFFER[0]) : COLOR\n"
+    static const char *clearFragShader = "float4 main(uniform float4 color) : COLOR\n"
                                          "{\n"
                                          "	return color;\n"
                                          "}\n";
@@ -634,17 +634,8 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
     gxm_internal.clearVertices[0] = (struct clear_vertex) {-1.0f, -1.0f};
     gxm_internal.clearVertices[1] = (struct clear_vertex) {3.0f, -1.0f};
     gxm_internal.clearVertices[2] = (struct clear_vertex) {-1.0f, 3.0f};
-
-    gxm_internal.clearColor = (NVGcolor *) gpu_alloc_map(
-            SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE,
-            SCE_GXM_MEMORY_ATTRIB_READ,
-            sizeof(NVGcolor),
-            &gxm_internal.clearColorUid);
-    gxm_internal.clearColor->r = 1.0f;
-    gxm_internal.clearColor->g = 1.0f;
-    gxm_internal.clearColor->b = 1.0f;
-    gxm_internal.clearColor->a = 1.0f;
-    sceGxmSetFragmentUniformBuffer(gxm_internal.context, 0, gxm_internal.clearColor->rgba);
+    gxm_internal.clearParam = sceGxmProgramFindParameterByName(gxm_internal.clearProg.frag_gxp, "color");
+    gxmClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     const SceGxmProgramParameter *clear_position_param = sceGxmProgramFindParameterByName(
             gxm_internal.clearProg.vert_gxp,
@@ -680,7 +671,6 @@ void nvgxmDeleteFramebuffer(NVGXMframebuffer *gxm) {
 
     gpu_unmap_free(gxm_internal.linearIndicesUid); // linear index buffer
     gpu_unmap_free(gxm_internal.clearVerticesUid); // clear vertex stream
-    gpu_unmap_free(gxm_internal.clearColorUid); // clear color uniform buffer
 
     gxmDeleteShader(&gxm_internal.clearProg);
 
@@ -711,13 +701,10 @@ void nvgxmDeleteFramebuffer(NVGXMframebuffer *gxm) {
 }
 
 void gxmClearColor(float r, float g, float b, float a) {
-    gxm_internal.clearColor->r = r;
-    gxm_internal.clearColor->g = g;
-    gxm_internal.clearColor->b = b;
-    gxm_internal.clearColor->a = a;
-
-    // TODO: Fix screen tearing
-    GXM_CHECK_VOID(sceGxmSetFragmentUniformBuffer(gxm_internal.context, 0, gxm_internal.clearColor->rgba));
+    gxm_internal.clearColor.r = r;
+    gxm_internal.clearColor.g = g;
+    gxm_internal.clearColor.b = b;
+    gxm_internal.clearColor.a = a;
 }
 
 void gxmClear(void) {
@@ -725,6 +712,11 @@ void gxmClear(void) {
     sceGxmSetFragmentProgram(gxm_internal.context, gxm_internal.clearProg.frag);
 
     sceGxmSetVertexStream(gxm_internal.context, 0, gxm_internal.clearVertices);
+
+    // set clear color
+    void *buffer;
+    sceGxmReserveFragmentDefaultUniformBuffer(gxm_internal.context, &buffer);
+    sceGxmSetUniformDataF(buffer, gxm_internal.clearParam, 0, 4, gxm_internal.clearColor.rgba);
 
     // clear stencil buffer
     sceGxmSetFrontStencilRef(gxm_internal.context, 0);
