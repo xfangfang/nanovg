@@ -336,6 +336,9 @@ static void *gpu_vertex_usse_alloc_map(size_t size, SceUID *uid, unsigned int *u
     if (sceGxmMapVertexUsseMemory(addr, size, usse_offset) < 0)
         return NULL;
 
+    if (uid)
+        *uid = memuid;
+
     return addr;
 }
 
@@ -366,6 +369,9 @@ static void *gpu_fragment_usse_alloc_map(size_t size, SceUID *uid, unsigned int 
 
     if (sceGxmMapFragmentUsseMemory(addr, size, usse_offset) < 0)
         return NULL;
+
+    if (uid)
+        *uid = memuid;
 
     return addr;
 }
@@ -424,7 +430,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
     unsigned int fragment_usse_offset;
     fragment_usse_ring_buffer_addr = gpu_fragment_usse_alloc_map(
             SCE_GXM_DEFAULT_FRAGMENT_USSE_RING_BUFFER_SIZE,
-            &fragment_ring_buffer_uid, &fragment_usse_offset);
+            &fragment_usse_ring_buffer_uid, &fragment_usse_offset);
 
     SceGxmContextParams gxm_context_params;
     memset(&gxm_context_params, 0, sizeof(gxm_context_params));
@@ -457,7 +463,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
     for (int i = 0; i < DISPLAY_BUFFER_COUNT; i++) {
         gxm_color_surfaces_addr[i] = gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,
                                                    SCE_GXM_MEMORY_ATTRIB_RW,
-                                                   ALIGN(4 * DISPLAY_STRIDE * DISPLAY_HEIGHT, 1 * 1024 * 1024),
+                                                   4 * DISPLAY_STRIDE * DISPLAY_HEIGHT,
                                                    &gxm_color_surfaces_uid[i]);
 
         memset(gxm_color_surfaces_addr[i], 0, DISPLAY_STRIDE * DISPLAY_HEIGHT);

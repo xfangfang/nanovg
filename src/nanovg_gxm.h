@@ -234,18 +234,6 @@ static void gxmDrawArrays(GXMNVGcontext *gxm, SceGxmPrimitiveType type, int fill
 
 static int gxmnvg__maxi(int a, int b) { return a > b ? a : b; }
 
-static unsigned int gxmnvg__nearestPow2(unsigned int num)
-{
-    unsigned n = num > 0 ? num - 1 : 0;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n++;
-    return n;
-}
-
 static void
 gxmnvg__stencilFunc(GXMNVGcontext *gxm, SceGxmStencilFunc func, SceGxmStencilOp stencilFail, SceGxmStencilOp depthFail,
                     SceGxmStencilOp depthPass) {
@@ -746,7 +734,7 @@ static int gxmnvg__renderCreate(void *uptr) {
     }
 #endif
 
-    if (gxmnvg__createShader(&gxm->depth_shader, "depth", NULL, (const char*)depthFragShader) == 0)
+    if (gxmnvg__createShader(&gxm->depth_shader, "depth", NULL, (const char *) depthFragShader) == 0)
         return 0;
 
     gxm->vertBuf = (struct NVGvertex *) gpu_alloc_map(
@@ -819,6 +807,9 @@ static int gxmnvg__renderCreate(void *uptr) {
 }
 
 static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int imageFlags, const unsigned char *data) {
+    if (w > 4096 || h > 4096)
+        return 0;
+
     GXMNVGcontext *gxm = (GXMNVGcontext *) uptr;
     GXMNVGtexture *tex = gxmnvg__allocTexture(gxm);
 
