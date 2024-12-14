@@ -61,6 +61,7 @@ int main() {
             .msaa = SCE_GXM_MULTISAMPLE_4X,
             .swapInterval = 1,
             .dumpShader = 1, // Save shaders to ux0:data/nvg_*.c
+            .scenesPerFrame = 1,
     };
 
     gxm = nvgxmCreateFramebuffer(&initOptions);

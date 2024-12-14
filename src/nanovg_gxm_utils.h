@@ -60,6 +60,7 @@ struct NVGXMinitOptions {
     SceGxmMultisampleMode msaa;
     int swapInterval;
     int dumpShader; // dump shader to ux0:data/nvg_name_type.c
+    int scenesPerFrame;
 };
 typedef struct NVGXMinitOptions NVGXMinitOptions;
 
@@ -453,7 +454,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
     render_target_params.flags = 0;
     render_target_params.width = DISPLAY_WIDTH;
     render_target_params.height = DISPLAY_HEIGHT;
-    render_target_params.scenesPerFrame = 1;
+    render_target_params.scenesPerFrame = gxm_internal.initOptions.scenesPerFrame;
     render_target_params.multisampleMode = opts->msaa;
     render_target_params.multisampleLocations = 0;
     render_target_params.driverMemBlock = -1;
