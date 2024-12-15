@@ -56,7 +56,7 @@ int main() {
     }
 #endif
 
-    NVGXMframebuffer *gxm = NULL;
+    NVGXMwindow *gxm = NULL;
     NVGXMinitOptions initOptions = {
             .msaa = SCE_GXM_MULTISAMPLE_4X,
             .swapInterval = 1,
