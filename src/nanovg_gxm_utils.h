@@ -76,7 +76,7 @@ struct NVGXMshaderProgram {
 };
 typedef struct NVGXMshaderProgram NVGXMshaderProgram;
 
-struct NVGXMframebuffer {
+struct NVGXMwindow {
     SceGxmContext *context;
     SceGxmShaderPatcher *shader_patcher;
     SceGxmMultisampleMode msaa;
@@ -106,12 +106,12 @@ struct NVGXMframebuffer {
     SceUID gxm_shader_patcher_fragment_usse_uid;
     void *gxm_shader_patcher_fragment_usse_addr;
 };
-typedef struct NVGXMframebuffer NVGXMframebuffer;
+typedef struct NVGXMwindow NVGXMwindow;
 
 // Helper function to init gxm.
-NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts);
+NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts);
 
-void nvgxmDeleteFramebuffer(NVGXMframebuffer *fb);
+void nvgxmDeleteWindow(NVGXMwindow *window);
 
 /**
  * @brief Begin a scene.
@@ -201,7 +201,7 @@ static struct gxm_internal {
     SceUID linearIndicesUid;
     unsigned short *linearIndices;
 
-    NVGXMframebuffer *defaultFramebuffer;
+    NVGXMwindow *window;
 } gxm_internal;
 
 static const char *gxmnvg__easy_strerror(int code) {
@@ -398,13 +398,13 @@ static void shader_patcher_host_free_cb(void *user_data, void *mem) {
     return free(mem);
 }
 
-NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
-    NVGXMframebuffer *fb = NULL;
-    fb = (NVGXMframebuffer *) malloc(sizeof(NVGXMframebuffer));
+NVGXMwindow *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
+    NVGXMwindow *fb = NULL;
+    fb = (NVGXMwindow *) malloc(sizeof(NVGXMwindow));
     if (fb == NULL) {
         return NULL;
     }
-    memset(fb, 0, sizeof(NVGXMframebuffer));
+    memset(fb, 0, sizeof(NVGXMwindow));
     memcpy(&gxm_internal.initOptions, opts, sizeof(NVGXMinitOptions));
     fb->msaa = opts->msaa;
 
@@ -631,7 +631,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
 #endif
     if (gxmCreateShader(&gxm_internal.clearProg, "clear", (const char *) clearVertShader,
                         (const char *) clearFragShader) == 0) {
-        nvgxmDeleteFramebuffer(fb);
+        nvgxmDeleteWindow(fb);
         return NULL;
     }
 
@@ -672,11 +672,11 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMinitOptions *opts) {
             NULL, gxm_internal.clearProg.vert_gxp,
             &gxm_internal.clearProg.frag));
 
-    gxm_internal.defaultFramebuffer = fb;
+    gxm_internal.window = fb;
     return fb;
 }
 
-void nvgxmDeleteFramebuffer(NVGXMframebuffer *fb) {
+void nvgxmDeleteWindow(NVGXMwindow *fb) {
     if (fb == NULL) return;
 
     gpu_unmap_free(gxm_internal.linearIndicesUid); // linear index buffer
@@ -741,7 +741,7 @@ void gxmClear(void) {
 }
 
 void gxmBeginFrame(void) {
-    NVGXMframebuffer *fb = gxm_internal.defaultFramebuffer;
+    NVGXMwindow *fb = gxm_internal.window;
     if (!fb) return;
     GXM_CHECK_VOID(sceGxmBeginScene(gxm_internal.context,
                                     0,
@@ -758,7 +758,7 @@ void gxmEndFrame(void) {
 }
 
 void gxmSwapBuffer(void) {
-    NVGXMframebuffer *fb = gxm_internal.defaultFramebuffer;
+    NVGXMwindow *fb = gxm_internal.window;
     if (!fb) return;
     struct display_queue_callback_data queue_cb_data;
     queue_cb_data.addr = fb->gxm_color_surfaces_addr[fb->gxm_back_buffer_index];
@@ -777,7 +777,7 @@ void gxmSwapInterval(int interval) {
 }
 
 int gxmDialogUpdate(void) {
-    NVGXMframebuffer *fb = gxm_internal.defaultFramebuffer;
+    NVGXMwindow *fb = gxm_internal.window;
     if (!fb) return SCE_COMMON_DIALOG_RESULT_ABORTED;
     SceCommonDialogUpdateParam updateParam;
     memset(&updateParam, 0, sizeof(updateParam));
@@ -796,7 +796,7 @@ int gxmDialogUpdate(void) {
 }
 
 void *gxmReadPixels(void) {
-    NVGXMframebuffer *fb = gxm_internal.defaultFramebuffer;
+    NVGXMwindow *fb = gxm_internal.window;
     if (!fb) return NULL;
     return sceGxmColorSurfaceGetData(&fb->gxm_color_surfaces[fb->gxm_front_buffer_index]);
 }

@@ -36,7 +36,7 @@ enum NVGcreateFlags {
     NVG_DEBUG = 1 << 2,
 };
 
-NVGcontext *nvgCreateGXM(NVGXMframebuffer *fb, int flags);
+NVGcontext *nvgCreateGXM(NVGXMwindow *fb, int flags);
 
 void nvgDeleteGXM(NVGcontext *ctx);
 
@@ -1580,7 +1580,7 @@ static void gxmnvg__renderDelete(void *uptr) {
     free(gxm);
 }
 
-NVGcontext *nvgCreateGXM(NVGXMframebuffer *fb, int flags) {
+NVGcontext *nvgCreateGXM(NVGXMwindow *fb, int flags) {
     NVGparams params;
     NVGcontext *ctx = NULL;
     GXMNVGcontext *gxm = (GXMNVGcontext *) malloc(sizeof(GXMNVGcontext));

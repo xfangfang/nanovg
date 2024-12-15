@@ -64,7 +64,7 @@ int main() {
             .scenesPerFrame = 1,
     };
 
-    gxm = nvgxmCreateFramebuffer(&initOptions);
+    gxm = nvgxmCreateWindow(&initOptions);
     if (gxm == NULL) {
         sceClibPrintf("gxm: failed to initialize\n");
         return EXIT_FAILURE;
@@ -147,7 +147,7 @@ int main() {
 
     freeDemoData(vg, &data);
     nvgDeleteGXM(vg);
-    nvgxmDeleteFramebuffer(gxm);
+    nvgxmDeleteWindow(gxm);
 
     sceClibPrintf("Average Frame Time: %.2f ms\n", getGraphAverage(&fps) * 1000.0f);
     sceClibPrintf("          CPU Time: %.2f ms\n", getGraphAverage(&cpuGraph) * 1000.0f);
