@@ -761,12 +761,12 @@ static int gxmnvg__renderCreate(void *uptr) {
     basic_vertex_stream[0].stride = sizeof(struct NVGvertex);
     basic_vertex_stream[0].indexSource = SCE_GXM_INDEX_SOURCE_INDEX_16BIT;
 
-    GXM_CHECK(nvgxmCreateVertexProgram(gxm->shader.prog.vert_id,
-                                       basic_vertex_attributes,
-                                       sizeof(basic_vertex_attributes) / sizeof(SceGxmVertexAttribute),
-                                       basic_vertex_stream,
-                                       sizeof(basic_vertex_stream) / sizeof(SceGxmVertexStream),
-                                       &gxm->shader.prog.vert));
+    GXM_CHECK(gxmCreateVertexProgram(gxm->shader.prog.vert_id,
+                                     basic_vertex_attributes,
+                                     sizeof(basic_vertex_attributes) / sizeof(SceGxmVertexAttribute),
+                                     basic_vertex_stream,
+                                     sizeof(basic_vertex_stream) / sizeof(SceGxmVertexStream),
+                                     &gxm->shader.prog.vert));
 
     /**
      * TODO: Custom blend function
@@ -783,17 +783,17 @@ static int gxmnvg__renderCreate(void *uptr) {
     blendInfo.alphaSrc = SCE_GXM_BLEND_FACTOR_ONE;
     blendInfo.alphaDst = SCE_GXM_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
 
-    GXM_CHECK(nvgxmCreateFragmentProgram(gxm->shader.prog.frag_id,
-                                         SCE_GXM_OUTPUT_REGISTER_FORMAT_UCHAR4,
-                                         &blendInfo, gxm->shader.prog.vert_gxp,
-                                         &gxm->shader.prog.frag));
+    GXM_CHECK(gxmCreateFragmentProgram(gxm->shader.prog.frag_id,
+                                       SCE_GXM_OUTPUT_REGISTER_FORMAT_UCHAR4,
+                                       &blendInfo, gxm->shader.prog.vert_gxp,
+                                       &gxm->shader.prog.frag));
 
     gxmnvg__getUniforms(&gxm->shader);
 
-    GXM_CHECK(nvgxmCreateFragmentProgram(gxm->depth_shader.prog.frag_id,
-                                         SCE_GXM_OUTPUT_REGISTER_FORMAT_UCHAR4,
-                                         NULL, gxm->shader.prog.vert_gxp,
-                                         &gxm->depth_shader.prog.frag));
+    GXM_CHECK(gxmCreateFragmentProgram(gxm->depth_shader.prog.frag_id,
+                                       SCE_GXM_OUTPUT_REGISTER_FORMAT_UCHAR4,
+                                       NULL, gxm->shader.prog.vert_gxp,
+                                       &gxm->depth_shader.prog.frag));
 
     gxm->fragSize = ALIGN(sizeof(GXMNVGfragUniforms), align);
 
@@ -823,7 +823,7 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
     int ret;
 
     tex->stride = aligned_w * spp;
-    tex->tex_data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE, SCE_GXM_MEMORY_ATTRIB_RW,
+    tex->tex_data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW, SCE_GXM_MEMORY_ATTRIB_RW,
                                               tex_size, &tex->data_UID);
     if (tex->tex_data == NULL) {
         return 0;

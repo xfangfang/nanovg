@@ -148,30 +148,30 @@ typedef struct NVGXMwindow NVGXMwindow;
 /**
  * Helper functions to create shader program.
  */
-int nvgxmCreateFragmentProgram(SceGxmShaderPatcherId programId,
-                               SceGxmOutputRegisterFormat outputFormat,
-                               const SceGxmBlendInfo *blendInfo,
-                               const SceGxmProgram *vertexProgram,
-                               SceGxmFragmentProgram **fragmentProgram);
+int gxmCreateFragmentProgram(SceGxmShaderPatcherId programId,
+                             SceGxmOutputRegisterFormat outputFormat,
+                             const SceGxmBlendInfo *blendInfo,
+                             const SceGxmProgram *vertexProgram,
+                             SceGxmFragmentProgram **fragmentProgram);
 
-int nvgxmCreateVertexProgram(SceGxmShaderPatcherId programId,
-                             const SceGxmVertexAttribute *attributes,
-                             unsigned int attributeCount,
-                             const SceGxmVertexStream *streams,
-                             unsigned int streamCount,
-                             SceGxmVertexProgram **vertexProgram);
+int gxmCreateVertexProgram(SceGxmShaderPatcherId programId,
+                           const SceGxmVertexAttribute *attributes,
+                           unsigned int attributeCount,
+                           const SceGxmVertexStream *streams,
+                           unsigned int streamCount,
+                           SceGxmVertexProgram **vertexProgram);
 
-NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts);
+NVGXMwindow *gxmCreateWindow(const NVGXMinitOptions *opts);
 
-void nvgxmDeleteWindow(NVGXMwindow *window);
+void gxmDeleteWindow(NVGXMwindow *window);
 
 NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts);
 
-void nvgxmDeleteFramebuffer(NVGXMframebuffer *fb);
+void gxmDeleteFramebuffer(NVGXMframebuffer *fb);
 
-NVGXMframebuffer *nvgxmCreateTexture(const NVGXMframebufferInitOptions *opts);
+NVGXMframebuffer *gxmCreateTexture(const NVGXMframebufferInitOptions *opts);
 
-void nvgxmDeleteTexture(NVGXMtexture *fb);
+void gxmDeleteTexture(NVGXMtexture *fb);
 
 /**
  * @brief Begin a scene.
@@ -468,7 +468,7 @@ static void shader_patcher_host_free_cb(void *user_data, void *mem) {
     return free(mem);
 }
 
-NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts) {
+NVGXMwindow *gxmCreateWindow(const NVGXMinitOptions *opts) {
     NVGXMwindow *window = NULL;
 
     /**
@@ -531,7 +531,7 @@ NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts) {
 
     sceGxmCreateContext(&gxm_context_params, &window->context);
     if (window->context == NULL) {
-        nvgxmDeleteWindow(window);
+        gxmDeleteWindow(window);
         return NULL;
     }
 
@@ -549,7 +549,7 @@ NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts) {
     };
     window->fb = nvgxmCreateFramebuffer(&framebufferOpts);
     if (!window->fb) {
-        nvgxmDeleteWindow(window);
+        gxmDeleteWindow(window);
         return NULL;
     }
 
@@ -684,7 +684,7 @@ NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts) {
 #endif
     if (gxmCreateShader(&gxm_internal.clearProg, "clear", (const char *) clearVertShader,
                         (const char *) clearFragShader) == 0) {
-        nvgxmDeleteWindow(window);
+        gxmDeleteWindow(window);
         return NULL;
     }
 
@@ -729,7 +729,7 @@ NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts) {
     return window;
 }
 
-void nvgxmDeleteWindow(NVGXMwindow *window) {
+void gxmDeleteWindow(NVGXMwindow *window) {
     if (window == NULL) return;
 
     gpu_unmap_free(gxm_internal.linearIndicesUid); // linear index buffer
@@ -744,7 +744,7 @@ void nvgxmDeleteWindow(NVGXMwindow *window) {
     gpu_vertex_usse_unmap_free(window->gxm_shader_patcher_vertex_usse_uid);
     gpu_fragment_usse_unmap_free(window->gxm_shader_patcher_fragment_usse_uid);
 
-    nvgxmDeleteFramebuffer(window->fb);
+    gxmDeleteFramebuffer(window->fb);
 
     gpu_unmap_free(window->vdm_ring_buffer_uid);
     gpu_unmap_free(window->vertex_ring_buffer_uid);
@@ -779,7 +779,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts
 
     fb->gxm_color_surfaces = (NVGXMcolorSurface *) malloc(opts->display_buffer_count * sizeof(NVGXMcolorSurface));
     if (fb->gxm_color_surfaces == NULL) {
-        nvgxmDeleteFramebuffer(fb);
+        gxmDeleteFramebuffer(fb);
         return NULL;
     }
 
@@ -790,7 +790,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts
                                                                4 * opts->display_stride * opts->display_height,
                                                                &fb->gxm_color_surfaces[i].surface_uid);
         if (fb->gxm_color_surfaces[i].surface_addr == NULL) {
-            nvgxmDeleteFramebuffer(fb);
+            gxmDeleteFramebuffer(fb);
             return NULL;
         }
 
@@ -827,7 +827,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts
                                                        SCE_GXM_MEMORY_ATTRIB_RW,
                                                        4 * depth_stencil_samples, &fb->gxm_depth_stencil_surface_uid);
     if (fb->gxm_depth_stencil_surface_addr == NULL) {
-        nvgxmDeleteFramebuffer(fb);
+        gxmDeleteFramebuffer(fb);
         return NULL;
     }
 
@@ -841,7 +841,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts
     return fb;
 }
 
-void nvgxmDeleteFramebuffer(NVGXMframebuffer *fb) {
+void gxmDeleteFramebuffer(NVGXMframebuffer *fb) {
     if (fb == NULL)
         return;
 
@@ -1080,11 +1080,11 @@ void gxmDeleteShader(NVGXMshaderProgram *prog) {
 #endif
 }
 
-int nvgxmCreateFragmentProgram(SceGxmShaderPatcherId programId,
-                                            SceGxmOutputRegisterFormat outputFormat,
-                                            const SceGxmBlendInfo *blendInfo,
-                                            const SceGxmProgram *vertexProgram,
-                                            SceGxmFragmentProgram **fragmentProgram) {
+int gxmCreateFragmentProgram(SceGxmShaderPatcherId programId,
+                             SceGxmOutputRegisterFormat outputFormat,
+                             const SceGxmBlendInfo *blendInfo,
+                             const SceGxmProgram *vertexProgram,
+                             SceGxmFragmentProgram **fragmentProgram) {
     return sceGxmShaderPatcherCreateFragmentProgram(gxm_internal.shader_patcher,
                                                     programId,
                                                     outputFormat,
@@ -1094,12 +1094,12 @@ int nvgxmCreateFragmentProgram(SceGxmShaderPatcherId programId,
                                                     fragmentProgram);
 }
 
-int nvgxmCreateVertexProgram(SceGxmShaderPatcherId programId,
-                             const SceGxmVertexAttribute *attributes,
-                             unsigned int attributeCount,
-                             const SceGxmVertexStream *streams,
-                             unsigned int streamCount,
-                             SceGxmVertexProgram **vertexProgram) {
+int gxmCreateVertexProgram(SceGxmShaderPatcherId programId,
+                           const SceGxmVertexAttribute *attributes,
+                           unsigned int attributeCount,
+                           const SceGxmVertexStream *streams,
+                           unsigned int streamCount,
+                           SceGxmVertexProgram **vertexProgram) {
     return sceGxmShaderPatcherCreateVertexProgram(gxm_internal.shader_patcher,
                                                   programId,
                                                   attributes,
