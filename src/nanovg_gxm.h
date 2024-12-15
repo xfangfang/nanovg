@@ -36,7 +36,7 @@ enum NVGcreateFlags {
     NVG_DEBUG = 1 << 2,
 };
 
-NVGcontext *nvgCreateGXM(NVGXMwindow *fb, int flags);
+NVGcontext *nvgCreateGXM(SceGxmContext *context, SceGxmShaderPatcher *shader_patcher, int flags);
 
 void nvgDeleteGXM(NVGcontext *ctx);
 
@@ -180,7 +180,6 @@ typedef struct GXMNVGfragUniforms GXMNVGfragUniforms;
 struct GXMNVGcontext {
     SceGxmContext *context;
     SceGxmShaderPatcher *shader_patcher;
-    SceGxmMultisampleMode msaa;
 
     GXMNVGshader shader;
     SceUID verticesUid;
@@ -762,12 +761,12 @@ static int gxmnvg__renderCreate(void *uptr) {
     basic_vertex_stream[0].stride = sizeof(struct NVGvertex);
     basic_vertex_stream[0].indexSource = SCE_GXM_INDEX_SOURCE_INDEX_16BIT;
 
-    GXM_CHECK(sceGxmShaderPatcherCreateVertexProgram(gxm->shader_patcher, gxm->shader.prog.vert_id,
-                                                     basic_vertex_attributes,
-                                                     sizeof(basic_vertex_attributes) / sizeof(SceGxmVertexAttribute),
-                                                     basic_vertex_stream,
-                                                     sizeof(basic_vertex_stream) / sizeof(SceGxmVertexStream),
-                                                     &gxm->shader.prog.vert));
+    GXM_CHECK(nvgxmCreateVertexProgram(gxm->shader.prog.vert_id,
+                                       basic_vertex_attributes,
+                                       sizeof(basic_vertex_attributes) / sizeof(SceGxmVertexAttribute),
+                                       basic_vertex_stream,
+                                       sizeof(basic_vertex_stream) / sizeof(SceGxmVertexStream),
+                                       &gxm->shader.prog.vert));
 
     /**
      * TODO: Custom blend function
@@ -784,18 +783,17 @@ static int gxmnvg__renderCreate(void *uptr) {
     blendInfo.alphaSrc = SCE_GXM_BLEND_FACTOR_ONE;
     blendInfo.alphaDst = SCE_GXM_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
 
-    GXM_CHECK(sceGxmShaderPatcherCreateFragmentProgram(gxm->shader_patcher,
-                                                       gxm->shader.prog.frag_id, SCE_GXM_OUTPUT_REGISTER_FORMAT_UCHAR4,
-                                                       gxm->msaa, &blendInfo, gxm->shader.prog.vert_gxp,
-                                                       &gxm->shader.prog.frag));
+    GXM_CHECK(nvgxmCreateFragmentProgram(gxm->shader.prog.frag_id,
+                                         SCE_GXM_OUTPUT_REGISTER_FORMAT_UCHAR4,
+                                         &blendInfo, gxm->shader.prog.vert_gxp,
+                                         &gxm->shader.prog.frag));
 
     gxmnvg__getUniforms(&gxm->shader);
 
-    GXM_CHECK(sceGxmShaderPatcherCreateFragmentProgram(gxm->shader_patcher,
-                                                       gxm->depth_shader.prog.frag_id,
-                                                       SCE_GXM_OUTPUT_REGISTER_FORMAT_UCHAR4,
-                                                       gxm->msaa, NULL, gxm->shader.prog.vert_gxp,
-                                                       &gxm->depth_shader.prog.frag));
+    GXM_CHECK(nvgxmCreateFragmentProgram(gxm->depth_shader.prog.frag_id,
+                                         SCE_GXM_OUTPUT_REGISTER_FORMAT_UCHAR4,
+                                         NULL, gxm->shader.prog.vert_gxp,
+                                         &gxm->depth_shader.prog.frag));
 
     gxm->fragSize = ALIGN(sizeof(GXMNVGfragUniforms), align);
 
@@ -1580,16 +1578,15 @@ static void gxmnvg__renderDelete(void *uptr) {
     free(gxm);
 }
 
-NVGcontext *nvgCreateGXM(NVGXMwindow *fb, int flags) {
+NVGcontext *nvgCreateGXM(SceGxmContext *context, SceGxmShaderPatcher *shader_patcher, int flags) {
     NVGparams params;
     NVGcontext *ctx = NULL;
     GXMNVGcontext *gxm = (GXMNVGcontext *) malloc(sizeof(GXMNVGcontext));
     if (gxm == NULL)
         goto error;
     memset(gxm, 0, sizeof(GXMNVGcontext));
-    gxm->context = fb->context;
-    gxm->shader_patcher = fb->shader_patcher;
-    gxm->msaa = fb->msaa;
+    gxm->context = context;
+    gxm->shader_patcher = shader_patcher;
 
     memset(&params, 0, sizeof(params));
     params.renderCreate = gxmnvg__renderCreate;

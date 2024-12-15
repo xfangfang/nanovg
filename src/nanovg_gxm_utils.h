@@ -83,6 +83,10 @@ struct NVGXMtexture {
 typedef struct NVGXMtexture NVGXMtexture;
 
 struct NVGXMframebufferInitOptions {
+    /**
+     * render_target is the framebuffer to render to.
+     * NULL for default framebuffer
+     */
     NVGXMtexture *render_target;
     SceGxmColorFormat color_format;
     SceGxmColorSurfaceType color_surface_type;
@@ -90,7 +94,6 @@ struct NVGXMframebufferInitOptions {
     int display_width;
     int display_height;
     int display_stride;
-    SceGxmMultisampleMode msaa;
 };
 typedef struct NVGXMframebufferInitOptions NVGXMframebufferInitOptions;
 
@@ -142,7 +145,22 @@ struct NVGXMwindow {
 };
 typedef struct NVGXMwindow NVGXMwindow;
 
-// Helper function to init gxm.
+/**
+ * Helper functions to create shader program.
+ */
+int nvgxmCreateFragmentProgram(SceGxmShaderPatcherId programId,
+                               SceGxmOutputRegisterFormat outputFormat,
+                               const SceGxmBlendInfo *blendInfo,
+                               const SceGxmProgram *vertexProgram,
+                               SceGxmFragmentProgram **fragmentProgram);
+
+int nvgxmCreateVertexProgram(SceGxmShaderPatcherId programId,
+                             const SceGxmVertexAttribute *attributes,
+                             unsigned int attributeCount,
+                             const SceGxmVertexStream *streams,
+                             unsigned int streamCount,
+                             SceGxmVertexProgram **vertexProgram);
+
 NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts);
 
 void nvgxmDeleteWindow(NVGXMwindow *window);
@@ -150,6 +168,10 @@ void nvgxmDeleteWindow(NVGXMwindow *window);
 NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts);
 
 void nvgxmDeleteFramebuffer(NVGXMframebuffer *fb);
+
+NVGXMframebuffer *nvgxmCreateTexture(const NVGXMframebufferInitOptions *opts);
+
+void nvgxmDeleteTexture(NVGXMtexture *fb);
 
 /**
  * @brief Begin a scene.
@@ -524,7 +546,6 @@ NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts) {
             .display_width = DISPLAY_WIDTH,
             .display_height = DISPLAY_HEIGHT,
             .display_stride = DISPLAY_STRIDE,
-            .msaa = window->msaa
     };
     window->fb = nvgxmCreateFramebuffer(&framebufferOpts);
     if (!window->fb) {
@@ -580,7 +601,7 @@ NVGXMwindow *nvgxmCreateWindow(const NVGXMinitOptions *opts) {
     gxm_internal.shader_patcher = window->shader_patcher;
 
     /**
-     * Alloc shaded linear indices
+     * Alloc shared linear indices
      */
     gxm_internal.linearIndices = (unsigned short *) gpu_alloc_map(
             SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE,
@@ -750,7 +771,7 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts
     render_target_params.width = opts->display_width;
     render_target_params.height = opts->display_height;
     render_target_params.scenesPerFrame = gxm_internal.initOptions.scenesPerFrame;
-    render_target_params.multisampleMode = opts->msaa;
+    render_target_params.multisampleMode = gxm_internal.initOptions.msaa;
     render_target_params.multisampleLocations = 0;
     render_target_params.driverMemBlock = -1;
 
@@ -778,8 +799,9 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts
         sceGxmColorSurfaceInit(&fb->gxm_color_surfaces[i].surface,
                                opts->color_format,
                                opts->color_surface_type,
-                               (opts->msaa == SCE_GXM_MULTISAMPLE_NONE) ? SCE_GXM_COLOR_SURFACE_SCALE_NONE
-                                                                        : SCE_GXM_COLOR_SURFACE_SCALE_MSAA_DOWNSCALE,
+                               (gxm_internal.initOptions.msaa == SCE_GXM_MULTISAMPLE_NONE)
+                               ? SCE_GXM_COLOR_SURFACE_SCALE_NONE
+                               : SCE_GXM_COLOR_SURFACE_SCALE_MSAA_DOWNSCALE,
                                SCE_GXM_OUTPUT_REGISTER_SIZE_32BIT,
                                opts->display_width,
                                opts->display_height,
@@ -793,11 +815,11 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts
     unsigned int depth_stencil_height = ALIGN(opts->display_height, SCE_GXM_TILE_SIZEY);
     unsigned int depth_stencil_samples = depth_stencil_width * depth_stencil_height;
 
-    if (opts->msaa == SCE_GXM_MULTISAMPLE_4X) {
+    if (gxm_internal.initOptions.msaa == SCE_GXM_MULTISAMPLE_4X) {
         // samples increase in X and Y
         depth_stencil_samples *= 4;
         depth_stencil_width *= 2;
-    } else if (opts->msaa == SCE_GXM_MULTISAMPLE_2X) {
+    } else if (gxm_internal.initOptions.msaa == SCE_GXM_MULTISAMPLE_2X) {
         // samples increase in Y only
         depth_stencil_samples *= 2;
     }
@@ -1056,6 +1078,35 @@ void gxmDeleteShader(NVGXMshaderProgram *prog) {
     if (prog->frag_gxp)
         free(prog->frag_gxp);
 #endif
+}
+
+int nvgxmCreateFragmentProgram(SceGxmShaderPatcherId programId,
+                                            SceGxmOutputRegisterFormat outputFormat,
+                                            const SceGxmBlendInfo *blendInfo,
+                                            const SceGxmProgram *vertexProgram,
+                                            SceGxmFragmentProgram **fragmentProgram) {
+    return sceGxmShaderPatcherCreateFragmentProgram(gxm_internal.shader_patcher,
+                                                    programId,
+                                                    outputFormat,
+                                                    gxm_internal.initOptions.msaa,
+                                                    blendInfo,
+                                                    vertexProgram,
+                                                    fragmentProgram);
+}
+
+int nvgxmCreateVertexProgram(SceGxmShaderPatcherId programId,
+                             const SceGxmVertexAttribute *attributes,
+                             unsigned int attributeCount,
+                             const SceGxmVertexStream *streams,
+                             unsigned int streamCount,
+                             SceGxmVertexProgram **vertexProgram) {
+    return sceGxmShaderPatcherCreateVertexProgram(gxm_internal.shader_patcher,
+                                                  programId,
+                                                  attributes,
+                                                  attributeCount,
+                                                  streams,
+                                                  streamCount,
+                                                  vertexProgram);
 }
 
 #endif // NANOVG_GXM_UTILS_IMPLEMENTATION

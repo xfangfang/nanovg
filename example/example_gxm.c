@@ -56,7 +56,7 @@ int main() {
     }
 #endif
 
-    NVGXMwindow *gxm = NULL;
+    NVGXMwindow *window = NULL;
     NVGXMinitOptions initOptions = {
             .msaa = SCE_GXM_MULTISAMPLE_4X,
             .swapInterval = 1,
@@ -64,13 +64,13 @@ int main() {
             .scenesPerFrame = 1,
     };
 
-    gxm = nvgxmCreateWindow(&initOptions);
-    if (gxm == NULL) {
-        sceClibPrintf("gxm: failed to initialize\n");
+    window = nvgxmCreateWindow(&initOptions);
+    if (window == NULL) {
+        sceClibPrintf("gxm: failed to create window\n");
         return EXIT_FAILURE;
     }
 
-    vg = nvgCreateGXM(gxm, NVG_STENCIL_STROKES);
+    vg = nvgCreateGXM(window->context, window->shader_patcher, NVG_STENCIL_STROKES);
     if (vg == NULL) {
         sceClibPrintf("nanovg: failed to initialize\n");
         return EXIT_FAILURE;
@@ -147,7 +147,7 @@ int main() {
 
     freeDemoData(vg, &data);
     nvgDeleteGXM(vg);
-    nvgxmDeleteWindow(gxm);
+    nvgxmDeleteWindow(window);
 
     sceClibPrintf("Average Frame Time: %.2f ms\n", getGraphAverage(&fps) * 1000.0f);
     sceClibPrintf("          CPU Time: %.2f ms\n", getGraphAverage(&cpuGraph) * 1000.0f);
