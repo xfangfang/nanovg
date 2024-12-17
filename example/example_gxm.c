@@ -31,8 +31,6 @@
 #include "demo.h"
 #include "perf.h"
 
-#undef sceClibPrintf
-
 #define MOUSE_MOVE 5
 #define CLAMP_NUM(a, min, max) { if(a>max) a=max; if(a<min) a=min; }
 
@@ -59,11 +57,10 @@ int main() {
     NVGXMwindow *window = NULL;
     NVGXMinitOptions initOptions = {
             .msaa = SCE_GXM_MULTISAMPLE_4X,
-            .swapInterval = 1,
+            .swapInterval = 0,
             .dumpShader = 1, // Save shaders to ux0:data/nvg_*.c
             .scenesPerFrame = 1,
     };
-
     window = gxmCreateWindow(&initOptions);
     if (window == NULL) {
         sceClibPrintf("gxm: failed to create window\n");

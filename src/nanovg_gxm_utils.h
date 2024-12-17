@@ -79,10 +79,16 @@ struct NVGXMshaderProgram {
 typedef struct NVGXMshaderProgram NVGXMshaderProgram;
 
 struct NVGXMtexture {
+    SceGxmTexture tex;
+    uint8_t *data;
+    SceUID uid;
 };
 typedef struct NVGXMtexture NVGXMtexture;
 
 struct NVGXMframebufferInitOptions {
+    int display_buffer_count;
+    int scenesPerFrame;
+
     /**
      * render_target is the framebuffer to render to.
      * NULL for default framebuffer
@@ -90,7 +96,6 @@ struct NVGXMframebufferInitOptions {
     NVGXMtexture *render_target;
     SceGxmColorFormat color_format;
     SceGxmColorSurfaceType color_surface_type;
-    int display_buffer_count;
     int display_width;
     int display_height;
     int display_stride;
@@ -163,20 +168,23 @@ int gxmCreateVertexProgram(SceGxmShaderPatcherId programId,
 
 NVGXMwindow *gxmCreateWindow(const NVGXMinitOptions *opts);
 
+NVGXMwindow *gxmGetWindow();
+
 void gxmDeleteWindow(NVGXMwindow *window);
 
-NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts);
+NVGXMframebuffer *gxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts);
 
 void gxmDeleteFramebuffer(NVGXMframebuffer *fb);
 
-NVGXMframebuffer *gxmCreateTexture(const NVGXMframebufferInitOptions *opts);
+NVGXMtexture *gxmCreateTexture(int width, int height, SceGxmTextureFormat format, void *data);
 
-void gxmDeleteTexture(NVGXMtexture *fb);
+void gxmDeleteTexture(NVGXMtexture *texture);
 
 /**
  * @brief Begin a scene.
  */
 void gxmBeginFrame(void);
+void gxmBeginFrameEx(NVGXMframebuffer *fb, unsigned int flags);
 
 /**
  * @brief End a scene.
@@ -236,6 +244,7 @@ void *gpu_alloc_map(SceKernelMemBlockType type, SceGxmMemoryAttribFlags gpu_attr
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 struct display_queue_callback_data {
     void *addr;
@@ -345,7 +354,6 @@ static void display_queue_callback(const void *callbackData) {
 }
 
 void *gpu_alloc_map(SceKernelMemBlockType type, SceGxmMemoryAttribFlags gpu_attrib, size_t size, SceUID *uid) {
-    sceClibPrintf("gpu_alloc_map: %d\n", size);
     SceUID memuid;
     void *addr;
 
@@ -539,15 +547,16 @@ NVGXMwindow *gxmCreateWindow(const NVGXMinitOptions *opts) {
      * Create default framebuffer
      */
     NVGXMframebufferInitOptions framebufferOpts = {
+            .display_buffer_count = DISPLAY_BUFFER_COUNT,
+            .scenesPerFrame = opts->scenesPerFrame,
             .render_target = NULL,
             .color_format = DISPLAY_COLOR_FORMAT,
             .color_surface_type = DISPLAY_COLOR_SURFACE_TYPE,
-            .display_buffer_count = DISPLAY_BUFFER_COUNT,
             .display_width = DISPLAY_WIDTH,
             .display_height = DISPLAY_HEIGHT,
             .display_stride = DISPLAY_STRIDE,
     };
-    window->fb = nvgxmCreateFramebuffer(&framebufferOpts);
+    window->fb = gxmCreateFramebuffer(&framebufferOpts);
     if (!window->fb) {
         gxmDeleteWindow(window);
         return NULL;
@@ -758,19 +767,27 @@ void gxmDeleteWindow(NVGXMwindow *window) {
     free(window);
 }
 
-NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts) {
+NVGXMwindow *gxmGetWindow() {
+    return gxm_internal.window;
+}
+
+NVGXMframebuffer *gxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts) {
     NVGXMframebuffer *fb = (NVGXMframebuffer *) malloc(sizeof(NVGXMframebuffer));
     if (fb == NULL) {
         return NULL;
     }
+    assert(opts->scenesPerFrame >= 1 && opts->scenesPerFrame <= 8);
+    assert(opts->display_buffer_count >= 1);
+    assert(opts->render_target && opts->display_buffer_count == 1 || !opts->render_target);
     memset(fb, 0, sizeof(NVGXMframebuffer));
     memcpy(&fb->initOptions, opts, sizeof(NVGXMframebufferInitOptions));
+
     SceGxmRenderTargetParams render_target_params;
     memset(&render_target_params, 0, sizeof(render_target_params));
     render_target_params.flags = 0;
     render_target_params.width = opts->display_width;
     render_target_params.height = opts->display_height;
-    render_target_params.scenesPerFrame = gxm_internal.initOptions.scenesPerFrame;
+    render_target_params.scenesPerFrame = opts->scenesPerFrame;
     render_target_params.multisampleMode = gxm_internal.initOptions.msaa;
     render_target_params.multisampleLocations = 0;
     render_target_params.driverMemBlock = -1;
@@ -785,13 +802,19 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts
 
     memset(fb->gxm_color_surfaces, 0, opts->display_buffer_count * sizeof(NVGXMcolorSurface));
     for (int i = 0; i < opts->display_buffer_count; i++) {
-        fb->gxm_color_surfaces[i].surface_addr = gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,
-                                                               SCE_GXM_MEMORY_ATTRIB_RW,
-                                                               4 * opts->display_stride * opts->display_height,
-                                                               &fb->gxm_color_surfaces[i].surface_uid);
-        if (fb->gxm_color_surfaces[i].surface_addr == NULL) {
-            gxmDeleteFramebuffer(fb);
-            return NULL;
+        if (opts->render_target) {
+            // Share the same data address between color surface and texture
+            fb->gxm_color_surfaces[i].surface_addr = opts->render_target->data;
+        } else {
+            fb->gxm_color_surfaces[i].surface_addr = gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,
+                                                                   SCE_GXM_MEMORY_ATTRIB_RW,
+                                                                   4 * opts->display_stride * opts->display_height,
+                                                                   &fb->gxm_color_surfaces[i].surface_uid);
+            if (fb->gxm_color_surfaces[i].surface_addr == NULL) {
+                gxmDeleteFramebuffer(fb);
+                return NULL;
+            }
+            sceGxmSyncObjectCreate(&fb->gxm_color_surfaces[i].sync_object);
         }
 
         memset(fb->gxm_color_surfaces[i].surface_addr, 0, 4 * opts->display_stride * opts->display_height);
@@ -808,7 +831,6 @@ NVGXMframebuffer *nvgxmCreateFramebuffer(const NVGXMframebufferInitOptions *opts
                                opts->display_stride,
                                fb->gxm_color_surfaces[i].surface_addr);
 
-        sceGxmSyncObjectCreate(&fb->gxm_color_surfaces[i].sync_object);
     }
 
     unsigned int depth_stencil_width = ALIGN(opts->display_width, SCE_GXM_TILE_SIZEX);
@@ -863,6 +885,85 @@ void gxmDeleteFramebuffer(NVGXMframebuffer *fb) {
     free(fb);
 }
 
+static int tex_format_to_bytespp(SceGxmTextureFormat format)
+{
+    switch (format & 0x9f000000U) {
+        case SCE_GXM_TEXTURE_BASE_FORMAT_U8:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_S8:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_P8:
+            return 1;
+        case SCE_GXM_TEXTURE_BASE_FORMAT_U4U4U4U4:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_U8U3U3U2:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_U1U5U5U5:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_U5U6U5:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_S5S5U6:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_U8U8:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_S8S8:
+            return 2;
+        case SCE_GXM_TEXTURE_BASE_FORMAT_U8U8U8:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_S8S8S8:
+            return 3;
+        case SCE_GXM_TEXTURE_BASE_FORMAT_U8U8U8U8:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_S8S8S8S8:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_F32:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_U32:
+        case SCE_GXM_TEXTURE_BASE_FORMAT_S32:
+        default:
+            return 4;
+    }
+}
+
+NVGXMtexture *gxmCreateTexture(int width, int height, SceGxmTextureFormat format, void *data) {
+    int aligned_w = ALIGN(width, 8);
+    int spp = tex_format_to_bytespp(format);
+    int stride = aligned_w * spp;
+    int tex_size = stride * height;
+    int ret;
+
+    NVGXMtexture *texture = (NVGXMtexture *) malloc(sizeof(NVGXMtexture));
+    if (texture == NULL) {
+        return NULL;
+    }
+
+    memset(texture, 0, sizeof(NVGXMtexture));
+    texture->data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,
+                                              SCE_GXM_MEMORY_ATTRIB_RW,
+                                              tex_size,
+                                              &texture->uid);
+    if (texture->data == NULL) {
+        gxmDeleteTexture(texture);
+        return NULL;
+    }
+
+    /* Clear the texture */
+    if (data == NULL) {
+        memset(texture->data, 0, tex_size);
+    } else {
+        for (int i = 0; i < height; i++) {
+            memcpy(texture->data + i * stride, data + i * width * spp, width * spp);
+        }
+    }
+
+    /* Create the gxm texture */
+    ret = sceGxmTextureInitLinear(&texture->tex, texture->data, format, width, height, 0);
+    if (ret < 0) {
+        GXM_PRINT_ERROR(ret);
+        gxmDeleteTexture(texture);
+        return NULL;
+    }
+
+    return texture;
+}
+
+void gxmDeleteTexture(NVGXMtexture *texture) {
+    if (texture == NULL) return;
+
+    if (texture->uid)
+        gpu_unmap_free(texture->uid);
+
+    free(texture);
+}
+
 void gxmClearColor(float r, float g, float b, float a) {
     gxm_internal.clearColor.r = r;
     gxm_internal.clearColor.g = g;
@@ -901,8 +1002,12 @@ void gxmBeginFrame(void) {
     if (!window) return;
     NVGXMframebuffer *fb = window->fb;
     if (!fb) return;
+    gxmBeginFrameEx(fb, 0);
+}
+
+void gxmBeginFrameEx(NVGXMframebuffer *fb, unsigned int flags) {
     GXM_CHECK_VOID(sceGxmBeginScene(gxm_internal.context,
-                                    0,
+                                    flags,
                                     fb->gxm_render_target,
                                     NULL,
                                     NULL,
