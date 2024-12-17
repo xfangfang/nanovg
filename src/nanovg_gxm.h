@@ -405,17 +405,13 @@ static int gxmnvg__renderCreate(void *uptr) {
                                 "   } else if (type == 1.0f) {\n" // Image
                                 "       float2 pt = (mul(paintMat, float3(fpos,1.0))).xy / extent.xy;\n"
                                 "       float4 color = tex2D(tex, pt);\n"
-                                "       if (texType == 1.0f) color = float4(color.xyz*color.w, color.w);\n"
-                                "       if (texType == 2.0f) color = float4(color.x, color.x, color.x, color.x);\n"
+                                "       color = float4(color.xyz*color.w, color.w);\n"
                                 "       color *= innerCol;\n"
                                 "       color *= strokeAlpha * scissor;\n"
                                 "       result = color;\n"
-                                "   } else if (type == 2.0f) {\n" // Stencil fill
-                                "       result = float4(1.0f, 1.0f, 1.0f, 1.0f);\n"
                                 "   } else {\n" // Textured tris
                                 "       float4 color = tex2D(tex, ftcoord);\n"
-                                "       if (texType == 1.0f) color = float4(color.xyz*color.w, color.w);\n"
-                                "       if (texType == 2.0f) color = float4(color.x, color.x, color.x, color.x);\n"
+                                "       color = float4(color.x, color.x, color.x, color.x);\n"
                                 "       color *= scissor;\n"
                                 "       result = (color * innerCol);\n"
                                 "   }\n"

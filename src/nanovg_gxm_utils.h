@@ -30,6 +30,7 @@ extern "C"
 #ifdef USE_VITA_SHARK
 
 #include <vitashark.h>
+#include <stdio.h>
 
 #endif
 
