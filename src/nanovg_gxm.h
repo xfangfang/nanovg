@@ -40,6 +40,10 @@ NVGcontext *nvgCreateGXM(SceGxmContext *context, SceGxmShaderPatcher *shader_pat
 
 void nvgDeleteGXM(NVGcontext *ctx);
 
+int nvgxmCreateImageFromHandle(NVGcontext *ctx, SceGxmTexture *texture);
+
+NVGXMtexture *nvgxmImageHandle(NVGcontext* ctx, int image);
+
 // These are additional flags on top of NVGimageFlags.
 enum NVGimageFlagsGXM {
     NVG_IMAGE_NODELETE = 1 << 16, // Do not delete GXM texture handle.
@@ -110,9 +114,8 @@ struct GXMNVGtexture {
 
     int stride;
     int unused;
-    SceGxmTexture gxm_tex;
-    uint8_t *tex_data;
-    SceUID data_UID;
+
+    NVGXMtexture texture;
 };
 typedef struct GXMNVGtexture GXMNVGtexture;
 
@@ -288,7 +291,7 @@ static int gxmnvg__deleteTexture(GXMNVGcontext *gxm, int id) {
     int i;
     for (i = 0; i < gxm->ntextures; i++) {
         if (gxm->textures[i].id == id) {
-            if (gxm->textures[i].data_UID != 0 && (gxm->textures[i].flags & NVG_IMAGE_NODELETE) == 0) {
+            if (gxm->textures[i].texture.uid != 0 && (gxm->textures[i].flags & NVG_IMAGE_NODELETE) == 0) {
                 gxm->textures[i].unused = 1;
             }
             return 1;
@@ -302,7 +305,7 @@ static int gxmnvg__garbageCollector(GXMNVGcontext *gxm) {
     for (i = 0; i < gxm->ntextures; i++) {
         if (gxm->textures[i].unused == 0)
             continue;
-        gpu_unmap_free(gxm->textures[i].data_UID);
+        gpu_unmap_free(gxm->textures[i].texture.uid);
         memset(&gxm->textures[i], 0, sizeof(gxm->textures[i]));
     }
     return 0;
@@ -823,18 +826,18 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
     int ret;
 
     tex->stride = aligned_w * spp;
-    tex->tex_data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW, SCE_GXM_MEMORY_ATTRIB_RW,
-                                              tex_size, &tex->data_UID);
-    if (tex->tex_data == NULL) {
+    tex->texture.data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW, SCE_GXM_MEMORY_ATTRIB_RW,
+                                              tex_size, &tex->texture.uid);
+    if (tex->texture.data == NULL) {
         return 0;
     }
 
     /* Clear the texture */
     if (data == NULL) {
-        memset(tex->tex_data, 0, tex_size);
+        memset(tex->texture.data, 0, tex_size);
     } else {
         for (int i = 0; i < h; i++) {
-            memcpy(tex->tex_data + i * tex->stride, data + i * w * spp, w * spp);
+            memcpy(tex->texture.data + i * tex->stride, data + i * w * spp, w * spp);
         }
     }
 
@@ -842,43 +845,43 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
     imageFlags &= ~NVG_IMAGE_GENERATE_MIPMAPS;
 
     /* Create the gxm texture */
-    ret = sceGxmTextureInitLinear(&tex->gxm_tex, tex->tex_data, format, texture_w, h, 0);
+    ret = sceGxmTextureInitLinear(&tex->texture.tex, tex->texture.data, format, texture_w, h, 0);
     if (ret < 0) {
         GXM_PRINT_ERROR(ret);
-        gpu_unmap_free(tex->data_UID);
-        tex->data_UID = 0;
+        gpu_unmap_free(tex->texture.uid);
+        tex->texture.uid = 0;
         return 0;
     }
 
     if (imageFlags & NVG_IMAGE_GENERATE_MIPMAPS) {
         if (imageFlags & NVG_IMAGE_NEAREST) {
-            sceGxmTextureSetMinFilter(&tex->gxm_tex, SCE_GXM_TEXTURE_FILTER_MIPMAP_POINT);
+            sceGxmTextureSetMinFilter(&tex->texture.tex, SCE_GXM_TEXTURE_FILTER_MIPMAP_POINT);
         } else {
-            sceGxmTextureSetMinFilter(&tex->gxm_tex, SCE_GXM_TEXTURE_FILTER_MIPMAP_LINEAR);
+            sceGxmTextureSetMinFilter(&tex->texture.tex, SCE_GXM_TEXTURE_FILTER_MIPMAP_LINEAR);
         }
     } else {
         if (imageFlags & NVG_IMAGE_NEAREST) {
-            sceGxmTextureSetMinFilter(&tex->gxm_tex, SCE_GXM_TEXTURE_FILTER_POINT);
+            sceGxmTextureSetMinFilter(&tex->texture.tex, SCE_GXM_TEXTURE_FILTER_POINT);
         } else {
-            sceGxmTextureSetMinFilter(&tex->gxm_tex, SCE_GXM_TEXTURE_FILTER_LINEAR);
+            sceGxmTextureSetMinFilter(&tex->texture.tex, SCE_GXM_TEXTURE_FILTER_LINEAR);
         }
     }
 
     if (imageFlags & NVG_IMAGE_NEAREST)
-        sceGxmTextureSetMagFilter(&tex->gxm_tex, SCE_GXM_TEXTURE_FILTER_POINT);
+        sceGxmTextureSetMagFilter(&tex->texture.tex, SCE_GXM_TEXTURE_FILTER_POINT);
     else
-        sceGxmTextureSetMagFilter(&tex->gxm_tex, SCE_GXM_TEXTURE_FILTER_LINEAR);
+        sceGxmTextureSetMagFilter(&tex->texture.tex, SCE_GXM_TEXTURE_FILTER_LINEAR);
 
 
     if (imageFlags & NVG_IMAGE_REPEATX)
-        sceGxmTextureSetUAddrMode(&tex->gxm_tex, SCE_GXM_TEXTURE_ADDR_REPEAT);
+        sceGxmTextureSetUAddrMode(&tex->texture.tex, SCE_GXM_TEXTURE_ADDR_REPEAT);
     else
-        sceGxmTextureSetUAddrMode(&tex->gxm_tex, SCE_GXM_TEXTURE_ADDR_CLAMP);
+        sceGxmTextureSetUAddrMode(&tex->texture.tex, SCE_GXM_TEXTURE_ADDR_CLAMP);
 
     if (imageFlags & NVG_IMAGE_REPEATY)
-        sceGxmTextureSetVAddrMode(&tex->gxm_tex, SCE_GXM_TEXTURE_ADDR_REPEAT);
+        sceGxmTextureSetVAddrMode(&tex->texture.tex, SCE_GXM_TEXTURE_ADDR_REPEAT);
     else
-        sceGxmTextureSetVAddrMode(&tex->gxm_tex, SCE_GXM_TEXTURE_ADDR_CLAMP);
+        sceGxmTextureSetVAddrMode(&tex->texture.tex, SCE_GXM_TEXTURE_ADDR_CLAMP);
 
     tex->width = w;
     tex->height = h;
@@ -904,7 +907,7 @@ static int gxmnvg__renderUpdateTexture(void *uptr, int image, int x, int y, int 
 
     for (int i = 0; i < h; i++) {
         int start = (i + y) * tex->stride + x * spp;
-        memcpy(tex->tex_data + start, data + start, w * spp);
+        memcpy(tex->texture.data + start, data + start, w * spp);
     }
 
     return 1;
@@ -1026,7 +1029,7 @@ static void gxmnvg__setUniforms(GXMNVGcontext *gxm, int uniformOffset, int image
         tex = gxmnvg__findTexture(gxm, gxm->dummyTex);
     }
     if (tex != NULL) {
-        GXM_CHECK_VOID(sceGxmSetFragmentTexture(gxm->context, 0, &tex->gxm_tex));
+        GXM_CHECK_VOID(sceGxmSetFragmentTexture(gxm->context, 0, &tex->texture.tex));
     }
 }
 
@@ -1562,8 +1565,8 @@ static void gxmnvg__renderDelete(void *uptr) {
     gpu_unmap_free(gxm->verticesUid); // vertex stream
 
     for (i = 0; i < gxm->ntextures; i++) {
-        if (gxm->textures[i].data_UID != 0 && (gxm->textures[i].flags & NVG_IMAGE_NODELETE) == 0)
-            gpu_unmap_free(gxm->textures[i].data_UID);
+        if (gxm->textures[i].texture.uid != 0 && (gxm->textures[i].flags & NVG_IMAGE_NODELETE) == 0)
+            gpu_unmap_free(gxm->textures[i].texture.uid);
     }
 
     gxmnvg__deleteShader(&gxm->shader);
@@ -1628,6 +1631,30 @@ NVGcontext *nvgCreateGXM(SceGxmContext *context, SceGxmShaderPatcher *shader_pat
 
 void nvgDeleteGXM(NVGcontext *ctx) {
     nvgDeleteInternal(ctx);
+}
+
+int nvgxmCreateImageFromHandle(NVGcontext *ctx, SceGxmTexture *texture) {
+    GXMNVGcontext *gxm = (GXMNVGcontext *) nvgInternalParams(ctx)->userPtr;
+    GXMNVGtexture *tex = gxmnvg__allocTexture(gxm);
+
+    if (tex == NULL) return 0;
+
+    tex->type = NVG_TEXTURE_RGBA;
+    tex->texture.tex = *texture;
+    tex->texture.uid = 0;
+    tex->texture.data = sceGxmTextureGetData(texture);
+    tex->flags = NVG_IMAGE_NODELETE;
+    tex->width = (int) sceGxmTextureGetWidth(texture);
+    tex->height = (int) sceGxmTextureGetHeight(texture);
+
+    return tex->id;
+}
+
+NVGXMtexture *nvgxmImageHandle(NVGcontext* ctx, int image)
+{
+    GXMNVGcontext *gxm = (GXMNVGcontext *) nvgInternalParams(ctx)->userPtr;
+    GXMNVGtexture* tex = gxmnvg__findTexture(gxm, image);
+    return &tex->texture;
 }
 
 #endif /* NANOVG_GL_IMPLEMENTATION */
