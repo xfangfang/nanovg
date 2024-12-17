@@ -33,41 +33,51 @@ endif ()
 add_subdirectory(src)
 
 if (ENABLE_EXAMPLE)
-    add_executable(${PROJECT_NAME}
-            ${CMAKE_SOURCE_DIR}/example/perf.c
-            ${CMAKE_SOURCE_DIR}/example/demo.c
-            ${CMAKE_SOURCE_DIR}/example/example_gxm.c
-    )
-    target_link_libraries(${PROJECT_NAME}
-            nanovg
-            SceCtrl_stub
-    )
+    function(add_exe project_name main_c)
+        add_executable(${project_name}
+                ${CMAKE_SOURCE_DIR}/example/perf.c
+                ${CMAKE_SOURCE_DIR}/example/demo.c
+                ${CMAKE_SOURCE_DIR}/example/${main_c}
+        )
+        target_link_libraries(${project_name}
+                nanovg
+                SceCtrl_stub
+        )
 
-    set(PSV_ASSETS_FILES
-            example/sce_sys sce_sys
-            example/images example/images
-            example/entypo.ttf example/entypo.ttf
-            example/Roboto-Regular.ttf example/Roboto-Regular.ttf
-            example/Roboto-Bold.ttf example/Roboto-Bold.ttf
-            example/NotoEmoji-Regular.ttf example/NotoEmoji-Regular.ttf)
-    if (USE_VITA_SHARK)
-        list(APPEND PSV_ASSETS_FILES "${CMAKE_BINARY_DIR}/vendor/SceShaccCg" module)
-    endif ()
+        set(PSV_ASSETS_FILES
+                example/sce_sys sce_sys
+                example/images example/images
+                example/entypo.ttf example/entypo.ttf
+                example/Roboto-Regular.ttf example/Roboto-Regular.ttf
+                example/Roboto-Bold.ttf example/Roboto-Bold.ttf
+                example/NotoEmoji-Regular.ttf example/NotoEmoji-Regular.ttf)
+        if (USE_VITA_SHARK)
+            list(APPEND PSV_ASSETS_FILES "${CMAKE_BINARY_DIR}/vendor/SceShaccCg" module)
+        endif ()
 
-    vita_create_self(${PROJECT_NAME}.self ${PROJECT_NAME} UNSAFE)
-    vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
-            VERSION ${VITA_VERSION}
-            NAME ${VITA_APP_NAME}
-            FILE ${PSV_ASSETS_FILES}
-    )
+        vita_create_self(${project_name}.self ${project_name} UNSAFE)
+        vita_create_vpk(${project_name}.vpk ${VITA_TITLEID} ${project_name}.self
+                VERSION ${VITA_VERSION}
+                NAME ${VITA_APP_NAME}
+                FILE ${PSV_ASSETS_FILES}
+        )
 
-    add_custom_target(vpksend
-            COMMAND curl -T ${PROJECT_NAME}.vpk ftp://${PSVITAIP}:1337/ux0:/
-            DEPENDS ${PROJECT_NAME}.vpk-vpk
-    )
+        add_custom_target(${project_name}_send_vpk
+                COMMAND curl -T ${project_name}.vpk ftp://${PSVITAIP}:1337/ux0:/
+                DEPENDS ${project_name}.vpk-vpk
+        )
 
-    add_custom_target(send
-            COMMAND curl -T ${PROJECT_NAME}.self ftp://${PSVITAIP}:1337/ux0:/app/${VITA_TITLEID}/eboot.bin
-            DEPENDS ${PROJECT_NAME}.self-self
-    )
+        add_custom_target(${project_name}_send_eboot
+                COMMAND curl -T ${project_name}.self ftp://${PSVITAIP}:1337/ux0:/app/${VITA_TITLEID}/eboot.bin
+                DEPENDS ${project_name}.self-self
+        )
+
+        add_custom_target(${project_name}_vita3k_install_eboot
+                COMMAND cp ${project_name}.self "${VITA3K_APP_PATH}/eboot.bin"
+                DEPENDS ${project_name}.self-self
+        )
+    endfunction()
+
+    add_exe(${PROJECT_NAME} example_gxm.c)
+    add_exe(${PROJECT_NAME}_fbo example_gxm_fbo.c)
 endif ()
