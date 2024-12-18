@@ -793,8 +793,14 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
     int ret;
 
     tex->stride = aligned_w * spp;
-    tex->texture.data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW, SCE_GXM_MEMORY_ATTRIB_RW,
+    tex->texture.data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,
+                                                  SCE_GXM_MEMORY_ATTRIB_RW,
                                                   tex_size, &tex->texture.uid);
+    if (tex->texture.data == NULL) {
+        tex->texture.data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE,
+                                                      SCE_GXM_MEMORY_ATTRIB_RW,
+                                                      tex_size, &tex->texture.uid);
+    }
     if (tex->texture.data == NULL) {
         return 0;
     }

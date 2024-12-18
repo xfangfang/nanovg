@@ -185,6 +185,7 @@ void gxmDeleteTexture(NVGXMtexture *texture);
  * @brief Begin a scene.
  */
 void gxmBeginFrame(void);
+
 void gxmBeginFrameEx(NVGXMframebuffer *fb, unsigned int flags);
 
 /**
@@ -881,8 +882,7 @@ void gxmDeleteFramebuffer(NVGXMframebuffer *fb) {
     free(fb);
 }
 
-static int tex_format_to_bytespp(SceGxmTextureFormat format)
-{
+static int tex_format_to_bytespp(SceGxmTextureFormat format) {
     switch (format & 0x9f000000U) {
         case SCE_GXM_TEXTURE_BASE_FORMAT_U8:
         case SCE_GXM_TEXTURE_BASE_FORMAT_S8:
@@ -936,7 +936,7 @@ NVGXMtexture *gxmCreateTexture(int width, int height, SceGxmTextureFormat format
         memset(texture->data, 0, tex_size);
     } else {
         for (int i = 0; i < height; i++) {
-            memcpy(texture->data + i * stride, data + i * width * spp, width * spp);
+            memcpy(texture->data + i * stride, (uint8_t *) data + i * width * spp, width * spp);
         }
     }
 
