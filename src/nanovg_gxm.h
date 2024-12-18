@@ -306,8 +306,12 @@ static int gxmnvg__garbageCollector(GXMNVGcontext *gxm) {
     for (i = 0; i < gxm->ntextures; i++) {
         if (gxm->textures[i].unused == 0)
             continue;
-        gpu_unmap_free(gxm->textures[i].texture.uid);
-        memset(&gxm->textures[i], 0, sizeof(gxm->textures[i]));
+        if (gxm->textures[i].unused > DISPLAY_BUFFER_COUNT) {
+            gpu_unmap_free(gxm->textures[i].texture.uid);
+            memset(&gxm->textures[i], 0, sizeof(gxm->textures[i]));
+            continue;
+        }
+        gxm->textures[i].unused++;
     }
     return 0;
 }
