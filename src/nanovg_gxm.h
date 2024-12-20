@@ -1025,9 +1025,6 @@ static void gxmnvg__fill(GXMNVGcontext *gxm, GXMNVGcall *call) {
     GXMNVGpath *paths = &gxm->paths[call->pathOffset];
     int i, npaths = call->pathCount;
 
-    // set bindpoint for solid loc
-    gxmnvg__setUniforms(gxm, call->uniformOffset, 0);
-
     // Draw shapes
     {
         // Disable color output
@@ -1057,7 +1054,7 @@ static void gxmnvg__fill(GXMNVGcontext *gxm, GXMNVGcall *call) {
     }
 
     // Draw anti-aliased pixels
-    gxmnvg__setUniforms(gxm, call->uniformOffset + gxm->fragSize, call->image);
+    gxmnvg__setUniforms(gxm, call->uniformOffset, call->image);
 
     if (gxm->flags & NVG_ANTIALIAS) {
         gxmnvg__stencilFunc(gxm, SCE_GXM_STENCIL_FUNC_EQUAL,
@@ -1348,7 +1345,6 @@ static void gxmnvg__renderFill(void *uptr, NVGpaint *paint,
     GXMNVGcontext *gxm = (GXMNVGcontext *) uptr;
     GXMNVGcall *call = gxmnvg__allocCall(gxm);
     NVGvertex *quad;
-    GXMNVGfragUniforms *frag;
     int i, maxverts, offset;
 
     if (call == NULL)
@@ -1405,13 +1401,8 @@ static void gxmnvg__renderFill(void *uptr, NVGpaint *paint,
         call->uniformOffset = gxmnvg__allocFragUniforms(gxm, 2);
         if (call->uniformOffset == -1)
             goto error;
-        // Simple shader for stencil
-        frag = nvg__fragUniformPtr(gxm, call->uniformOffset);
-        memset(frag, 0, sizeof(*frag));
-        frag->strokeThr = -1.0f;
-        frag->type = NSVG_SHADER_SIMPLE;
         // Fill shader
-        gxmnvg__convertPaint(gxm, nvg__fragUniformPtr(gxm, call->uniformOffset + gxm->fragSize), paint, scissor, fringe,
+        gxmnvg__convertPaint(gxm, nvg__fragUniformPtr(gxm, call->uniformOffset), paint, scissor, fringe,
                              fringe, -1.0f);
     } else {
         call->uniformOffset = gxmnvg__allocFragUniforms(gxm, 1);
@@ -1623,7 +1614,7 @@ int nvgxmCreateImageFromHandle(NVGcontext *ctx, SceGxmTexture *texture) {
     tex->type = NVG_TEXTURE_RGBA;
     tex->texture.tex = *texture;
     tex->texture.uid = 0;
-    tex->texture.data = sceGxmTextureGetData(texture);
+    tex->texture.data = (uint8_t *) sceGxmTextureGetData(texture);
     tex->flags = NVG_IMAGE_NODELETE;
     tex->width = (int) sceGxmTextureGetWidth(texture);
     tex->height = (int) sceGxmTextureGetHeight(texture);
