@@ -789,7 +789,7 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
         return 0;
 
     SceGxmTextureFormat format =
-            type == NVG_TEXTURE_RGBA ? SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR : SCE_GXM_TEXTURE_FORMAT_U8_R;
+            type == NVG_TEXTURE_RGBA ? SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR : SCE_GXM_TEXTURE_FORMAT_U8_000R;
     int aligned_w = ALIGN(w, 8);
     int texture_w = w;
     int spp = type == NVG_TEXTURE_RGBA ? 4 : 1;
