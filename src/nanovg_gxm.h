@@ -219,7 +219,7 @@ typedef struct GXMNVGcontext GXMNVGcontext;
 
 
 static void gxmDrawArrays(GXMNVGcontext *gxm, SceGxmPrimitiveType type, int fillOffset, int fillCount) {
-    if (fillCount > UINT16_MAX) {
+    if (fillCount > UINT16_MAX || fillCount < 3) {
         return;
     }
 
@@ -1345,9 +1345,9 @@ static void gxmnvg__renderFill(void *uptr, NVGpaint *paint,
     GXMNVGcontext *gxm = (GXMNVGcontext *) uptr;
     GXMNVGcall *call = gxmnvg__allocCall(gxm);
     NVGvertex *quad;
-    int i, maxverts, offset;
+    int i, maxverts, offset, valid = 0;
 
-    if (call == NULL)
+    if (call == NULL || npaths == 0)
         return;
 
     call->type = GXMNVG_FILL;
@@ -1374,19 +1374,23 @@ static void gxmnvg__renderFill(void *uptr, NVGpaint *paint,
         GXMNVGpath *copy = &gxm->paths[call->pathOffset + i];
         const NVGpath *path = &paths[i];
         memset(copy, 0, sizeof(GXMNVGpath));
-        if (path->nfill > 0) {
+        if (path->nfill > 2) {
             copy->fillOffset = offset;
             copy->fillCount = path->nfill;
             memcpy(&gxm->verts[offset], path->fill, sizeof(NVGvertex) * path->nfill);
             offset += path->nfill;
+            valid = 1;
         }
-        if (path->nstroke > 0) {
+        if (path->nstroke > 2) {
             copy->strokeOffset = offset;
             copy->strokeCount = path->nstroke;
             memcpy(&gxm->verts[offset], path->stroke, sizeof(NVGvertex) * path->nstroke);
             offset += path->nstroke;
+            valid = 1;
         }
     }
+    if (valid == 0)
+        goto error;
 
     // Setup uniforms for draw calls
     if (call->type == GXMNVG_FILL) {
@@ -1426,9 +1430,9 @@ static void gxmnvg__renderStroke(void *uptr, NVGpaint *paint,
                                  float fringe, float strokeWidth, const NVGpath *paths, int npaths) {
     GXMNVGcontext *gxm = (GXMNVGcontext *) uptr;
     GXMNVGcall *call = gxmnvg__allocCall(gxm);
-    int i, maxverts, offset;
+    int i, maxverts, offset, valid = 0;
 
-    if (call == NULL)
+    if (call == NULL || npaths == 0)
         return;
 
     call->type = GXMNVG_STROKE;
@@ -1449,13 +1453,16 @@ static void gxmnvg__renderStroke(void *uptr, NVGpaint *paint,
         GXMNVGpath *copy = &gxm->paths[call->pathOffset + i];
         const NVGpath *path = &paths[i];
         memset(copy, 0, sizeof(GXMNVGpath));
-        if (path->nstroke) {
+        if (path->nstroke > 2) {
             copy->strokeOffset = offset;
             copy->strokeCount = path->nstroke;
             memcpy(&gxm->verts[offset], path->stroke, sizeof(NVGvertex) * path->nstroke);
             offset += path->nstroke;
+            valid = 1;
         }
     }
+    if (valid == 0)
+        goto error;
 
     if (gxm->flags & NVG_STENCIL_STROKES) {
         // Fill shader
@@ -1492,7 +1499,7 @@ static void gxmnvg__renderTriangles(void *uptr, NVGpaint *paint,
     GXMNVGcall *call = gxmnvg__allocCall(gxm);
     GXMNVGfragUniforms *frag;
 
-    if (call == NULL)
+    if (call == NULL || nverts == 0)
         return;
 
     call->type = GXMNVG_TRIANGLES;
