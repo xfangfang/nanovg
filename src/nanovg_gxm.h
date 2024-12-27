@@ -47,6 +47,8 @@ NVGXMtexture *nvgxmImageHandle(NVGcontext *ctx, int image);
 // These are additional flags on top of NVGimageFlags.
 enum NVGimageFlagsGXM {
     NVG_IMAGE_NODELETE = 1 << 16, // Do not delete GXM texture handle.
+    NVG_IMAGE_DXT1 = 1 << 15,
+    NVG_IMAGE_DXT5 = 1 << 14,
 };
 
 int __attribute__((weak)) nvg_gxm_vertex_buffer_size = 1024 * 1024;
@@ -236,6 +238,17 @@ static void gxmDrawArrays(GXMNVGcontext *gxm, SceGxmPrimitiveType type, int fill
 }
 
 static int gxmnvg__maxi(int a, int b) { return a > b ? a : b; }
+
+static unsigned int gxmnvg__nearestPow2(unsigned int num) {
+    unsigned n = num > 0 ? num - 1 : 0;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+    return n;
+}
 
 static void
 gxmnvg__stencilFunc(GXMNVGcontext *gxm, SceGxmStencilFunc func, SceGxmStencilOp stencilFail, SceGxmStencilOp depthFail,
@@ -791,10 +804,19 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
     SceGxmTextureFormat format =
             type == NVG_TEXTURE_RGBA ? SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR : SCE_GXM_TEXTURE_FORMAT_U8_000R;
     int aligned_w = ALIGN(w, 8);
-    int texture_w = w;
     int spp = type == NVG_TEXTURE_RGBA ? 4 : 1;
-    int tex_size = aligned_w * h * spp;
+    uint32_t tex_size;
     int ret;
+    int swizzled = ((imageFlags & NVG_IMAGE_DXT1) || (imageFlags & NVG_IMAGE_DXT5)) && (type == NVG_TEXTURE_RGBA);
+
+    if (swizzled) {
+        format = imageFlags & NVG_IMAGE_DXT1 ? SCE_GXM_TEXTURE_FORMAT_UBC1_ABGR : SCE_GXM_TEXTURE_FORMAT_UBC3_ABGR;
+        tex_size = gxmnvg__nearestPow2(w) * gxmnvg__nearestPow2(h);
+        if (imageFlags & NVG_IMAGE_DXT1)
+            tex_size >> 1;
+    } else {
+        tex_size = aligned_w * h * spp;
+    }
 
     tex->stride = aligned_w * spp;
     tex->texture.data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,
@@ -812,6 +834,8 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
     /* Clear the texture */
     if (data == NULL) {
         memset(tex->texture.data, 0, tex_size);
+    } else if (swizzled || aligned_w == w) {
+        memcpy(tex->texture.data, data, tex_size);
     } else {
         for (int i = 0; i < h; i++) {
             memcpy(tex->texture.data + i * tex->stride, data + i * w * spp, w * spp);
@@ -822,7 +846,12 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
     imageFlags &= ~NVG_IMAGE_GENERATE_MIPMAPS;
 
     /* Create the gxm texture */
-    ret = sceGxmTextureInitLinear(&tex->texture.tex, tex->texture.data, format, texture_w, h, 0);
+    if (swizzled) {
+        ret = sceGxmTextureInitSwizzledArbitrary(&tex->texture.tex, tex->texture.data, format, w, h, 0);
+    } else {
+        ret = sceGxmTextureInitLinear(&tex->texture.tex, tex->texture.data, format, w, h, 0);
+    }
+
     if (ret < 0) {
         GXM_PRINT_ERROR(ret);
         gpu_unmap_free(tex->texture.uid);
@@ -879,6 +908,14 @@ static int gxmnvg__renderUpdateTexture(void *uptr, int image, int x, int y, int 
 
     if (tex == NULL)
         return 0;
+
+    if (tex->flags & NVG_IMAGE_DXT1 || tex->flags & NVG_IMAGE_DXT5) {
+        uint32_t tex_size = gxmnvg__nearestPow2(w) * gxmnvg__nearestPow2(h);
+        if (tex->flags & NVG_IMAGE_DXT1)
+            tex_size >> 1;
+        memcpy(tex->texture.data, data, tex_size);
+        return 1;
+    }
 
     int spp = tex->type == NVG_TEXTURE_RGBA ? 4 : 1;
 
