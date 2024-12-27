@@ -813,7 +813,7 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
         format = imageFlags & NVG_IMAGE_DXT1 ? SCE_GXM_TEXTURE_FORMAT_UBC1_ABGR : SCE_GXM_TEXTURE_FORMAT_UBC3_ABGR;
         tex_size = gxmnvg__nearestPow2(w) * gxmnvg__nearestPow2(h);
         if (imageFlags & NVG_IMAGE_DXT1)
-            tex_size >> 1;
+            tex_size = tex_size >> 1;
     } else {
         tex_size = aligned_w * h * spp;
     }
@@ -912,7 +912,7 @@ static int gxmnvg__renderUpdateTexture(void *uptr, int image, int x, int y, int 
     if (tex->flags & NVG_IMAGE_DXT1 || tex->flags & NVG_IMAGE_DXT5) {
         uint32_t tex_size = gxmnvg__nearestPow2(w) * gxmnvg__nearestPow2(h);
         if (tex->flags & NVG_IMAGE_DXT1)
-            tex_size >> 1;
+            tex_size = tex_size >> 1;
         memcpy(tex->texture.data, data, tex_size);
         return 1;
     }
