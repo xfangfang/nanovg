@@ -192,7 +192,7 @@ int main() {
     memset(&old_pad, 0, sizeof(old_pad));
     gxmClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
 
-    int compressedImage = loadCompressedImage(vg, "app0:/example/images/image1.jpg", NVG_IMAGE_DXT1);
+    int compressedImage = loadCompressedImage(vg, "app0:/example/images/image1.jpg", NVG_IMAGE_DXT1 | NVG_IMAGE_LPDDR);
 
     for (;;) {
         sceCtrlPeekBufferPositive(0, &pad, 1);

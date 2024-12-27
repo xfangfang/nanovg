@@ -49,6 +49,7 @@ enum NVGimageFlagsGXM {
     NVG_IMAGE_NODELETE = 1 << 16, // Do not delete GXM texture handle.
     NVG_IMAGE_DXT1 = 1 << 15,
     NVG_IMAGE_DXT5 = 1 << 14,
+    NVG_IMAGE_LPDDR = 1 << 13,
 };
 
 int __attribute__((weak)) nvg_gxm_vertex_buffer_size = 1024 * 1024;
@@ -115,7 +116,6 @@ struct GXMNVGtexture {
     int type;
     int flags;
 
-    int stride;
     int unused;
 
     NVGXMtexture texture;
@@ -805,7 +805,7 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
             type == NVG_TEXTURE_RGBA ? SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR : SCE_GXM_TEXTURE_FORMAT_U8_000R;
     int aligned_w = ALIGN(w, 8);
     int spp = type == NVG_TEXTURE_RGBA ? 4 : 1;
-    uint32_t tex_size;
+    uint32_t tex_size, stride, mem_type1, mem_type2;
     int ret;
     int swizzled = ((imageFlags & NVG_IMAGE_DXT1) || (imageFlags & NVG_IMAGE_DXT5)) && (type == NVG_TEXTURE_RGBA);
 
@@ -818,12 +818,19 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
         tex_size = aligned_w * h * spp;
     }
 
-    tex->stride = aligned_w * spp;
-    tex->texture.data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW,
+    if (imageFlags & NVG_IMAGE_LPDDR) {
+        mem_type1 = SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE;
+        mem_type2 = SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW;
+    } else {
+        mem_type1 = SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW;
+        mem_type2 = SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE;
+    }
+
+    tex->texture.data = (uint8_t *) gpu_alloc_map(mem_type1,
                                                   SCE_GXM_MEMORY_ATTRIB_RW,
                                                   tex_size, &tex->texture.uid);
     if (tex->texture.data == NULL) {
-        tex->texture.data = (uint8_t *) gpu_alloc_map(SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE,
+        tex->texture.data = (uint8_t *) gpu_alloc_map(mem_type2,
                                                       SCE_GXM_MEMORY_ATTRIB_RW,
                                                       tex_size, &tex->texture.uid);
     }
@@ -837,8 +844,9 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
     } else if (swizzled || aligned_w == w) {
         memcpy(tex->texture.data, data, tex_size);
     } else {
+        stride = aligned_w * spp;
         for (int i = 0; i < h; i++) {
-            memcpy(tex->texture.data + i * tex->stride, data + i * w * spp, w * spp);
+            memcpy(tex->texture.data + i * stride, data + i * w * spp, w * spp);
         }
     }
 
@@ -918,9 +926,9 @@ static int gxmnvg__renderUpdateTexture(void *uptr, int image, int x, int y, int 
     }
 
     int spp = tex->type == NVG_TEXTURE_RGBA ? 4 : 1;
-
+    uint32_t stride = ALIGN(tex->width, 8);
     for (int i = 0; i < h; i++) {
-        int start = (i + y) * tex->stride + x * spp;
+        uint32_t start = ((i + y) * stride + x ) * spp;
         memcpy(tex->texture.data + start, data + start, w * spp);
     }
 

@@ -12,6 +12,22 @@ cmake -B build -DENABLE_EXAMPLE=ON
 cmake --build build
 ```
 
+## New Features
+
+### 1. Compressed texture support
+
+When creating an RGBA texture, you can specify the following image flag and pass in the compressed texture.  
+This can significantly reduce the memory footprint when the texture dimensions are large.
+
+ - NVG_IMAGE_DXT1
+ - NVG_IMAGE_DXT5
+
+### 2. Texture memory location support
+
+You can manually specify that textures should be stored in system memory (by default, textures are stored in video memory).
+
+ - NVG_IMAGE_LPDDR
+
 ## TODO
 
 #### 1. blend function 
