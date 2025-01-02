@@ -415,7 +415,6 @@ static int gxmnvg__renderCreate(void *uptr) {
                                 "    float strokeAlpha = 1.0f;\n"
                                 "#endif\n"
                                 "   if (type == 0.0f) {\n" // simple color
-                                "       float2 pt = (mul(paintMat, float3(fpos,1.0))).xy;\n"
                                 "       float4 color = innerCol;\n"
                                 "       color *= strokeAlpha * scissor;\n"
                                 "       result = color;\n"
@@ -928,7 +927,7 @@ static int gxmnvg__renderUpdateTexture(void *uptr, int image, int x, int y, int 
     int spp = tex->type == NVG_TEXTURE_RGBA ? 4 : 1;
     uint32_t stride = ALIGN(tex->width, 8);
     for (int i = 0; i < h; i++) {
-        uint32_t start = ((i + y) * stride + x ) * spp;
+        uint32_t start = ((i + y) * stride + x) * spp;
         memcpy(tex->texture.data + start, data + start, w * spp);
     }
 

@@ -210,6 +210,11 @@ void gxmClearColor(float r, float g, float b, float a);
 void gxmClear(void);
 
 /**
+ * @brief Set the scissor rectangle.
+ */
+void gxmScissor(int x, int y, int w, int h);
+
+/**
  * @brief Get framebuffer data.
  */
 void *gxmReadPixels(void);
@@ -991,6 +996,10 @@ void gxmClear(void) {
                SCE_GXM_INDEX_FORMAT_U16,
                gxm_internal.linearIndices,
                3);
+}
+
+void gxmScissor(int x, int y, int w, int h) {
+    sceGxmSetRegionClip(gxm_internal.context, SCE_GXM_REGION_CLIP_OUTSIDE, x, y, x + w, y + h);
 }
 
 void gxmBeginFrame(void) {
