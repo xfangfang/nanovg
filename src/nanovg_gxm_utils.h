@@ -169,7 +169,7 @@ int gxmCreateVertexProgram(SceGxmShaderPatcherId programId,
 
 NVGXMwindow *gxmCreateWindow(const NVGXMinitOptions *opts);
 
-NVGXMwindow *gxmGetWindow();
+NVGXMwindow *gxmGetWindow(void);
 
 void gxmDeleteWindow(NVGXMwindow *window);
 
@@ -638,9 +638,9 @@ NVGXMwindow *gxmCreateWindow(const NVGXMinitOptions *opts) {
                                          "	return float4(position, 1.f, 1.f);\n"
                                          "}\n";
 
-    static const char *clearFragShader = "float4 main(uniform float4 color) : COLOR\n"
+    static const char *clearFragShader = "__nativecolor __regformat unsigned char4 main(uniform float4 color) : COLOR\n"
                                          "{\n"
-                                         "	return color;\n"
+                                         "	return unsigned char4(color * 255);\n"
                                          "}\n";
 #else
     static const unsigned char clearVertShader[252] = {
@@ -769,7 +769,7 @@ void gxmDeleteWindow(NVGXMwindow *window) {
     free(window);
 }
 
-NVGXMwindow *gxmGetWindow() {
+NVGXMwindow *gxmGetWindow(void) {
     return gxm_internal.window;
 }
 

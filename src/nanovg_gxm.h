@@ -73,19 +73,18 @@ int __attribute__((weak)) nvg_gxm_vertex_buffer_size = 1024 * 1024;
 
 #include <vitashark.h>
 
-static void shark_log_cb(const char *msg, shark_log_level msg_level, int line) {
+static void __attribute__((__optimize__("no-optimize-sibling-calls"))) shark_log_cb(const char *msg, shark_log_level msg_level, int line) {
     switch (msg_level) {
         case SHARK_LOG_INFO:
-            fprintf(stdout, "\033[0;34m[GXP #%d]\033[0m %s\n", line, msg);
+            sceClibPrintf("\033[0;34m[GXP #%d]\033[0m %s\n", line, msg);
             break;
         case SHARK_LOG_WARNING:
-            fprintf(stdout, "\033[0;33m[GXP #%d]\033[0m %s\n", line, msg);
+            sceClibPrintf("\033[0;33m[GXP #%d]\033[0m %s\n", line, msg);
             break;
         case SHARK_LOG_ERROR:
-            fprintf(stdout, "\033[0;31m[GXP #%d]\033[0m %s\n", line, msg);
+            sceClibPrintf("\033[0;31m[GXP #%d]\033[0m %s\n", line, msg);
             break;
     }
-    fflush(stdout);
 }
 
 #endif
