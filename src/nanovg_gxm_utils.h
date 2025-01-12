@@ -47,14 +47,15 @@ extern "C"
 #define DISPLAY_COLOR_SURFACE_TYPE SCE_GXM_COLOR_SURFACE_LINEAR
 #define DISPLAY_PIXEL_FORMAT SCE_DISPLAY_PIXELFORMAT_A8B8G8R8
 
-static int gxm__error_status = SCE_OK;
 #define GXM_PRINT_ERROR(status) sceClibPrintf("[line %d] failed with reason: %s\n", __LINE__, gxmnvg__easy_strerror(status))
-#define GXM_CHECK_RETURN(func, ret)         \
-    gxm__error_status = func;               \
-    if (gxm__error_status != SCE_OK)        \
-    {                                       \
-        GXM_PRINT_ERROR(gxm__error_status); \
-        return ret;                         \
+#define GXM_CHECK_RETURN(func, ret)  \
+    {                                \
+        int status = func;           \
+        if (status != SCE_OK)        \
+        {                            \
+            GXM_PRINT_ERROR(status); \
+            return ret;              \
+        }                            \
     }
 #define GXM_CHECK(func) GXM_CHECK_RETURN(func, 0)
 #define GXM_CHECK_VOID(func) GXM_CHECK_RETURN(func, )
@@ -1093,7 +1094,7 @@ void dumpShader(const char *name, const char *type, const SceGxmProgram *program
     FILE *fp = fopen(path, "w");
     if (fp) {
         fprintf(fp, "static const unsigned char %s%sShader[%i] = {", name, type, size);
-        for (int i = 0; i < size; ++i) {
+        for (uint32_t i = 0; i < size; ++i) {
             if (need_comma)
                 fprintf(fp, ", ");
             else

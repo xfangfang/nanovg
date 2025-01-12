@@ -82,13 +82,13 @@ static inline __attribute__((always_inline)) void extract_block(const uint8_t *s
  * @param w source width
  * @param h source height
  * @param stride source stride
+ * @param last_size max block size in pixel of last compression round, default is 64
  * @param isdxt5 0 for DXT1, others for DXT5
  */
-
-static void dxt_compress_ext(uint8_t *dst, uint8_t *src, uint32_t w, uint32_t h, uint32_t stride, int isdxt5) {
+static void dxt_compress_ext(uint8_t *dst, uint8_t *src, uint32_t w, uint32_t h, uint32_t stride, uint32_t last_size, int isdxt5) {
     uint8_t block[64];
-    uint32_t align_w = MAX(nearest_po2(w), 64);
-    uint32_t align_h = MAX(nearest_po2(h), 64);
+    uint32_t align_w = MAX(nearest_po2(w), last_size);
+    uint32_t align_h = MAX(nearest_po2(h), last_size);
     uint32_t s = MIN(align_w, align_h);
     uint32_t num_blocks = s * s / 16;
     const uint32_t block_size = isdxt5 ? 16 : 8;
@@ -102,15 +102,15 @@ static void dxt_compress_ext(uint8_t *dst, uint8_t *src, uint32_t w, uint32_t h,
         stb_compress_dxt_block(dst, block, isdxt5, STB_DXT_NORMAL);
     }
     if (align_w > align_h) {
-        return dxt_compress_ext(dst, src + s * 4, w - s, h, stride, isdxt5);
+        return dxt_compress_ext(dst, src + s * 4, w - s, h, stride, s, isdxt5);
     }
-    else if (align_w < align_h) {
-        return dxt_compress_ext(dst, src + stride * s * 4, w, h - s, stride, isdxt5);
+    if (align_w < align_h) {
+        return dxt_compress_ext(dst, src + stride * s * 4, w, h - s, stride, s, isdxt5);
     }
 }
 
 void dxt_compress(uint8_t *dst, uint8_t *src, uint32_t w, uint32_t h, int isdxt5) {
-    dxt_compress_ext(dst, src, w, h, w, isdxt5);
+    dxt_compress_ext(dst, src, w, h, w, 64, isdxt5);
 }
 
 int loadCompressedImage(NVGcontext *vg, const char *path, int flag) {
