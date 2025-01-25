@@ -50,7 +50,9 @@ enum NVGimageFlagsGXM {
     NVG_IMAGE_DXT1 = 1 << 15,
     NVG_IMAGE_DXT5 = 1 << 14,
     NVG_IMAGE_LPDDR = 1 << 13,
+    NVG_IMAGE_CDRAM = 1 << 12,
 };
+int __attribute__((weak)) nanovg_gxm_default_mem_type = NVG_IMAGE_LPDDR;
 
 int __attribute__((weak)) nvg_gxm_vertex_buffer_size = 1024 * 1024;
 
@@ -816,6 +818,9 @@ static int gxmnvg__renderCreateTexture(void *uptr, int type, int w, int h, int i
         tex_size = aligned_w * h * spp;
     }
 
+    if (!(imageFlags & NVG_IMAGE_LPDDR || imageFlags & NVG_IMAGE_CDRAM)) {
+        imageFlags |= nanovg_gxm_default_mem_type;
+    }
     if (imageFlags & NVG_IMAGE_LPDDR) {
         mem_type1 = SCE_KERNEL_MEMBLOCK_TYPE_USER_RW_UNCACHE;
         mem_type2 = SCE_KERNEL_MEMBLOCK_TYPE_USER_CDRAM_RW;

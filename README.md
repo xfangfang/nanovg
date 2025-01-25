@@ -22,11 +22,92 @@ This can significantly reduce the memory footprint when the texture dimensions a
  - NVG_IMAGE_DXT1
  - NVG_IMAGE_DXT5
 
+```c
+// Create a DXT1 texture from a compressed data
+uint8_t* dxt1_data = ...;
+int image1 = nvgCreateImageRGBA(vg, w, h, NVG_IMAGE_DXT1, dxt1_data);
+
+// Create an empty DXT1 texture, then update the texture with compressed data
+int image2 = nvgCreateImageRGBA(vg, w, h, NVG_IMAGE_DXT1, NULL);
+nvgUpdateImage(vg, image2, dxt1_data);
+
+// Create an empty DXT1 texture, then directly update the texture data
+void dxt1_compress(uint8_t* dst, uint8_t* src, int w, int h);
+uint8_t* rgba_data = ...;
+int image3 = nvgCreateImageRGBA(vg, w, h, NVG_IMAGE_DXT1, NULL);
+NVGXMtexture *tex = nvgxmImageHandle(vg, image3);
+dxt1_compress(tex->data, rgba_data, w, h);
+```
+
 ### 2. Texture memory location support
 
-You can manually specify that textures should be stored in system memory (by default, textures are stored in video memory).
+You can manually specify that textures should be stored in system memory or video memory.
 
  - NVG_IMAGE_LPDDR
+ - NVG_IMAGE_CDRAM
+
+```c
+// Create a texture in video memory
+int image1 = nvgCreateImageRGBA(vg, w, h, NVG_IMAGE_CDRAM, NULL);
+
+// Create a texture in system memory
+int image2 = nvgCreateImageRGBA(vg, w, h, NVG_IMAGE_LPDDR, NULL);
+```
+
+by default, textures are stored in system memory, you can specify the default location by defining a global variable: `nanovg_gxm_default_mem_type`
+
+```c
+#include <nanovg.h>
+
+#define NANOVG_GXM_IMPLEMENTATION
+#define NANOVG_GXM_UTILS_IMPLEMENTATION
+#include <nanovg_gxm.h>
+
+int nanovg_gxm_default_mem_type = NVG_IMAGE_CDRAM;
+
+int main(...) {
+    ...
+    
+    struct NVGcontext* vg = nvgCreateGXM(gxm_context, shader_patcher, NVG_STENCIL_STROKES)
+            
+    ...
+    
+    // Create textures in video memory
+    int image1 = nvgCreateImageRGBA(vg, w, h, 0, NULL);
+    int image2 = nvgCreateImageRGBA(vg, w, h, 0, NULL);
+    
+    // Create a texture in system memory
+    int image3 = nvgCreateImageRGBA(vg, w, h, NVG_IMAGE_LPDDR, NULL);
+    
+    ...
+}
+```
+
+### 3. Change the size of the vertex buffer
+
+There is a built-in vertex buffer in nanovg, which is used to store the vertex data of the drawn graphics. The default size is 1024 * 1024 bytes. You can define a global variable to modify this default value: `nvg_gxm_vertex_buffer_size`.
+
+When too many graphics are drawn in a frame, it may exceed the size of this buffer, causing the drawing to fail. In this case, you can increase the size of this buffer.
+
+```c
+#include <nanovg.h>
+
+#define NANOVG_GXM_IMPLEMENTATION
+#define NANOVG_GXM_UTILS_IMPLEMENTATION
+#include <nanovg_gxm.h>
+
+int nvg_gxm_vertex_buffer_size = 2 * 1024 * 1024;
+
+int main(...) {
+    ...
+}
+```
+
+### 4. GXM related helper functions
+
+In order to facilitate the initialization of an application, some GXM-related helper functions are provided in `src/nanovg_gxm_utils.h`.
+
+You can see how these functions are used in `example/example_gxm.c` and `example/example_gxm_fbo.c`.
 
 ## TODO
 
