@@ -75,7 +75,8 @@ int __attribute__((weak)) nvg_gxm_vertex_buffer_size = 1024 * 1024;
 
 #include <vitashark.h>
 
-static void __attribute__((__optimize__("no-optimize-sibling-calls"))) shark_log_cb(const char *msg, shark_log_level msg_level, int line) {
+static void __attribute__((__optimize__("no-optimize-sibling-calls")))
+shark_log_cb(const char *msg, shark_log_level msg_level, int line) {
     switch (msg_level) {
         case SHARK_LOG_INFO:
             sceClibPrintf("\033[0;34m[GXP #%d]\033[0m %s\n", line, msg);
@@ -350,98 +351,98 @@ static int gxmnvg__renderCreate(void *uptr) {
     int align = 4;
 
 #if USE_VITA_SHARK
-    char fillVertShader[500] = "struct VS_OUTPUT\n"
-                               "{\n"
-                               "    float4 position   : POSITION;\n"
-                               "    float2 ftcoord    : TEXCOORD0;\n"
-                               "    float2 fpos       : TEXCOORD1;\n"
-                               "};\n"
-                               "void main(\n"
-                               "   float2 vertex : POSITION,\n"
-                               "   float2 tcoord : TEXCOORD0,\n"
-                               "   uniform float2 viewSize,\n"
-                               "   out VS_OUTPUT output\n"
-                               ")\n"
-                               "{\n"
-                               "   output.ftcoord = tcoord;\n"
-                               "   output.fpos = vertex;\n"
-                               "   output.position = float4(2.0 * vertex.x / viewSize.x - 1.0, 1.0 - 2.0 * vertex.y / viewSize.y, 1.0f, 1.0f);\n"
-                               "}\n";
+    char fillVertShader[] = "struct VS_OUTPUT\n"
+                            "{\n"
+                            "    float4 position   : POSITION;\n"
+                            "    float2 ftcoord    : TEXCOORD0;\n"
+                            "    float2 fpos       : TEXCOORD1;\n"
+                            "};\n"
+                            "void main(\n"
+                            "   float2 vertex : POSITION,\n"
+                            "   float2 tcoord : TEXCOORD0,\n"
+                            "   uniform float2 viewSize,\n"
+                            "   out VS_OUTPUT output\n"
+                            ")\n"
+                            "{\n"
+                            "   output.ftcoord = tcoord;\n"
+                            "   output.fpos = vertex;\n"
+                            "   output.position = float4(2.0 * vertex.x / viewSize.x - 1.0, 1.0 - 2.0 * vertex.y / viewSize.y, 1.0f, 1.0f);\n"
+                            "}\n";
 
-    char fillFragShader[2500] = "#define EDGE_AA 0\n"
-                                "#define UNIFORMARRAY_SIZE 11\n"
-                                "uniform float4 frag[UNIFORMARRAY_SIZE];\n"
-                                "#define scissorMat float3x3(frag[0].xyz, frag[1].xyz, frag[2].xyz)\n"
-                                "#define paintMat float3x3(frag[3].xyz, frag[4].xyz, frag[5].xyz)\n"
-                                "#define innerCol frag[6]\n"
-                                "#define outerCol frag[7]\n"
-                                "#define scissorExt frag[8].xy\n"
-                                "#define scissorScale frag[8].zw\n"
-                                "#define extent frag[9].xy\n"
-                                "#define radius frag[9].z\n"
-                                "#define feather frag[9].w\n"
-                                "#define strokeMult frag[10].x\n"
-                                "#define strokeThr frag[10].y\n"
-                                "#define texType frag[10].z\n"
-                                "#define type frag[10].w\n"
-                                "float sdroundrect(float2 pt, float2 ext, float rad)\n"
-                                "{\n"
-                                "    float2 ext2 = ext - float2(rad,rad);\n"
-                                "    float2 d = abs(pt) - ext2;\n"
-                                "    return min(max(d.x,d.y),0.0) + length(max(d,0.0)) - rad;\n"
-                                "}\n"
-                                "float scissorMask(float2 p) {\n"
-                                "   float2 sc = (abs((mul(scissorMat, float3(p,1.0))).xy) - scissorExt);\n"
-                                "   sc = float2(0.5,0.5) - sc * scissorScale;\n"
-                                "   return clamp(sc.x,0.0,1.0) * clamp(sc.y,0.0,1.0);\n"
-                                "}\n"
-                                "#if EDGE_AA\n" // Stroke - from [0..1] to clipped pyramid, where the slope is 1px.
-                                "float strokeMask(float2 ftcoord)\n"
-                                "{\n"
-                                "    return min(1.0, (1.0 - abs(ftcoord.x*2.0 - 1.0))*strokeMult) * min(1.0f, ftcoord.y);\n"
-                                "}\n"
-                                "#endif\n"
-                                "float4 main(\n"
-                                "   uniform sampler2D tex : TEXUNIT0,\n"
-                                "   float2 ftcoord: TEXCOORD0,\n"
-                                "   float2 fpos: TEXCOORD1\n"
-                                ") : COLOR\n"
-                                "{\n"
-                                "   float4 result;\n"
-                                "   float scissor = scissorMask(fpos);\n"
-                                "#if EDGE_AA\n"
-                                "    float strokeAlpha = strokeMask(ftcoord);\n"
-                                "    if (strokeAlpha < strokeThr) discard;\n"
-                                "#else\n"
-                                "    float strokeAlpha = 1.0f;\n"
-                                "#endif\n"
-                                "   if (type == 0.0f) {\n" // simple color
-                                "       float4 color = innerCol;\n"
-                                "       color *= strokeAlpha * scissor;\n"
-                                "       result = color;\n"
-                                "   } else if (type == 1.0f) {\n" // Gradient
-                                "       float2 pt = (mul(paintMat, float3(fpos,1.0))).xy;\n"
-                                "       float d = clamp((sdroundrect(pt, extent, radius) + feather*0.5) / feather, 0.0, 1.0);\n"
-                                "       float4 color = lerp(innerCol, outerCol, d);\n"
-                                "       color *= strokeAlpha * scissor;\n"
-                                "       result = color;\n"
-                                "   } else if (type == 2.0f) {\n" // Image
-                                "       float2 pt = (mul(paintMat, float3(fpos,1.0))).xy / extent.xy;\n"
-                                "       float4 color = tex2D(tex, pt);\n"
-                                "       color = float4(color.xyz*color.w, color.w);\n"
-                                "       color *= innerCol;\n"
-                                "       color *= strokeAlpha * scissor;\n"
-                                "       result = color;\n"
-                                "   } else {\n" // Textured tris
-                                "       float4 color = tex2D(tex, ftcoord);\n"
-                                "       color = float4(color.x, color.x, color.x, color.x);\n"
-                                "       color *= scissor;\n"
-                                "       result = (color * innerCol);\n"
-                                "   }\n"
-                                "   return result;\n"
-                                "}\n";
+    char fillFragShader[] = "#define EDGE_AA 0\n"
+                            "#define UNIFORMARRAY_SIZE 11\n"
+                            "uniform float4 frag[UNIFORMARRAY_SIZE];\n"
+                            "#define scissorMat float3x3(frag[0].xyz, frag[1].xyz, frag[2].xyz)\n"
+                            "#define paintMat float3x3(frag[3].xyz, frag[4].xyz, frag[5].xyz)\n"
+                            "#define innerCol frag[6]\n"
+                            "#define outerCol frag[7]\n"
+                            "#define scissorExt frag[8].xy\n"
+                            "#define scissorScale frag[8].zw\n"
+                            "#define extent frag[9].xy\n"
+                            "#define radius frag[9].z\n"
+                            "#define feather frag[9].w\n"
+                            "#define strokeMult frag[10].x\n"
+                            "#define strokeThr frag[10].y\n"
+                            "#define texType frag[10].z\n"
+                            "#define type frag[10].w\n"
+                            "float sdroundrect(float2 pt, float2 ext, float rad)\n"
+                            "{\n"
+                            "    float2 ext2 = ext - float2(rad,rad);\n"
+                            "    float2 d = abs(pt) - ext2;\n"
+                            "    return min(max(d.x,d.y),0.0) + length(max(d,0.0)) - rad;\n"
+                            "}\n"
+                            "float scissorMask(float2 p) {\n"
+                            "   float2 sc = (abs((mul(scissorMat, float3(p,1.0))).xy) - scissorExt);\n"
+                            "   sc = float2(0.5,0.5) - sc * scissorScale;\n"
+                            "   return clamp(sc.x,0.0,1.0) * clamp(sc.y,0.0,1.0);\n"
+                            "}\n"
+                            "#if EDGE_AA\n" // Stroke - from [0..1] to clipped pyramid, where the slope is 1px.
+                            "float strokeMask(float2 ftcoord)\n"
+                            "{\n"
+                            "    return min(1.0, (1.0 - abs(ftcoord.x*2.0 - 1.0))*strokeMult) * min(1.0f, ftcoord.y);\n"
+                            "}\n"
+                            "#endif\n"
+                            "float4 main(\n"
+                            "   uniform sampler2D tex : TEXUNIT0,\n"
+                            "   float2 ftcoord: TEXCOORD0,\n"
+                            "   float2 fpos: TEXCOORD1\n"
+                            ") : COLOR\n"
+                            "{\n"
+                            "   float4 result;\n"
+                            "   float scissor = scissorMask(fpos);\n"
+                            "#if EDGE_AA\n"
+                            "    float strokeAlpha = strokeMask(ftcoord);\n"
+                            "    if (strokeAlpha < strokeThr) discard;\n"
+                            "#else\n"
+                            "    float strokeAlpha = 1.0f;\n"
+                            "#endif\n"
+                            "   if (type == 0.0f) {\n" // simple color
+                            "       float4 color = innerCol;\n"
+                            "       color *= strokeAlpha * scissor;\n"
+                            "       result = color;\n"
+                            "   } else if (type == 1.0f) {\n" // Gradient
+                            "       float2 pt = (mul(paintMat, float3(fpos,1.0))).xy;\n"
+                            "       float d = clamp((sdroundrect(pt, extent, radius) + feather*0.5) / feather, 0.0, 1.0);\n"
+                            "       float4 color = lerp(innerCol, outerCol, d);\n"
+                            "       color *= strokeAlpha * scissor;\n"
+                            "       result = color;\n"
+                            "   } else if (type == 2.0f) {\n" // Image
+                            "       float2 pt = (mul(paintMat, float3(fpos,1.0))).xy / extent.xy;\n"
+                            "       float4 color = tex2D(tex, pt);\n"
+                            "       color = float4(color.xyz*color.w, color.w);\n"
+                            "       color *= innerCol;\n"
+                            "       color *= strokeAlpha * scissor;\n"
+                            "       result = color;\n"
+                            "   } else {\n" // Textured tris
+                            "       float4 color = tex2D(tex, ftcoord);\n"
+                            "       color = float4(color.x, color.x, color.x, color.x);\n"
+                            "       color *= scissor;\n"
+                            "       result = (color * innerCol);\n"
+                            "   }\n"
+                            "   return result;\n"
+                            "}\n";
 
-    char depthFragShader[20] = "void main() {}";
+    char depthFragShader[] = "void main() {}";
 
     if (gxm->flags & NVG_ANTIALIAS) {
         fillFragShader[16] = '1'; // #define EDGE_AA 1
@@ -931,8 +932,9 @@ static int gxmnvg__renderUpdateTexture(void *uptr, int image, int x, int y, int 
     int spp = tex->type == NVG_TEXTURE_RGBA ? 4 : 1;
     uint32_t stride = ALIGN(tex->width, 8);
     for (int i = 0; i < h; i++) {
-        uint32_t start = ((i + y) * stride + x) * spp;
-        memcpy(tex->texture.data + start, data + start, w * spp);
+        uint32_t tex_start = ((i + y) * stride + x) * spp;
+        uint32_t data_start = ((i + y) * tex->width + x) * spp;
+        memcpy(tex->texture.data + tex_start, data + data_start, w * spp);
     }
 
     return 1;
